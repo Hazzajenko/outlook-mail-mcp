@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+try {
+  process.loadEnvFile();
+} catch {
+  // no .env present; fine
+}
+
 import { Command } from "commander";
 import { z } from "zod";
 import { renderFolders, renderFullMessage, renderSearchResults } from "./cli-render.ts";
@@ -35,9 +41,7 @@ function buildTokenProvider(): TokenProvider {
     );
   }
   const tenantId = process.env.OUTLOOK_QUERY_TENANT_ID;
-  return createTokenProvider(
-    tenantId !== undefined ? { clientId, tenantId } : { clientId },
-  );
+  return createTokenProvider(tenantId !== undefined ? { clientId, tenantId } : { clientId });
 }
 
 function buildClient(): GraphClient {

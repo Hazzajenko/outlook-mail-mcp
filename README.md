@@ -28,11 +28,15 @@ pnpm build
 
 ### 3. Configure env
 
+Create `.env` in the project root (gitignored), or export in your shell:
+
 ```
-export OUTLOOK_QUERY_CLIENT_ID=<paste app id>
-# Optional. Default 'common' works for personal + work. Use 'consumers' to lock to personal.
-export OUTLOOK_QUERY_TENANT_ID=common
+OUTLOOK_QUERY_CLIENT_ID=<paste app id>
+# Optional. Default 'common' (personal + work). Use 'consumers' to lock to personal.
+OUTLOOK_QUERY_TENANT_ID=common
 ```
+
+The CLI auto-loads `.env` from cwd via Node's built-in `process.loadEnvFile()`. The MCP server does too, but Claude Code launches it from its own cwd — set env via `.mcp.json` `env` block instead (see below).
 
 ### 4. First-run auth
 
