@@ -17,7 +17,7 @@ const lean = (over: Partial<LeanMessage> = {}): LeanMessage => ({
 
 describe("renderSearchResults", () => {
   it("renders empty result", () => {
-    const out = renderSearchResults({ results: [], total_returned: 0, more_available: false });
+    const out = renderSearchResults({ results: [], total_returned: 0 });
     expect(out).toContain("0 results");
   });
 
@@ -25,7 +25,6 @@ describe("renderSearchResults", () => {
     const result: SearchResult = {
       results: [lean()],
       total_returned: 1,
-      more_available: false,
     };
     const out = renderSearchResults(result);
     expect(out).toContain("recruiter@example.com");
@@ -38,7 +37,6 @@ describe("renderSearchResults", () => {
     const out = renderSearchResults({
       results: [lean({ is_read: false })],
       total_returned: 1,
-      more_available: false,
     });
     expect(out).toMatch(/unread|●|\*/i);
   });
@@ -47,16 +45,15 @@ describe("renderSearchResults", () => {
     const out = renderSearchResults({
       results: [lean({ has_attachment: true })],
       total_returned: 1,
-      more_available: false,
     });
     expect(out).toMatch(/attachment|📎|\[a\]|@/i);
   });
 
-  it("shows more_available footer", () => {
+  it("shows more-available footer when next_cursor present", () => {
     const out = renderSearchResults({
       results: [lean()],
       total_returned: 1,
-      more_available: true,
+      next_cursor: "https://graph.microsoft.com/v1.0/me/messages?$skip=1",
     });
     expect(out).toMatch(/more available|more results/i);
   });
@@ -65,7 +62,6 @@ describe("renderSearchResults", () => {
     const out = renderSearchResults({
       results: [lean({ from: { address: "x@y.com" } })],
       total_returned: 1,
-      more_available: false,
     });
     expect(out).toContain("x@y.com");
   });
