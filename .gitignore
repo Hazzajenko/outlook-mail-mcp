@@ -13,6 +13,9 @@ msal-cache.json
 .env.local
 .env.*.local
 
+# personal install notes
+MCP_INSTALL.md
+
 # editor
 .vscode
 .idea
