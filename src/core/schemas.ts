@@ -41,6 +41,12 @@ const EmailAddressSchema = z.object({
 });
 export type EmailAddress = z.infer<typeof EmailAddressSchema>;
 
+export const InternetMessageHeaderSchema = z.object({
+  name: z.string(),
+  value: z.string(),
+});
+export type InternetMessageHeader = z.infer<typeof InternetMessageHeaderSchema>;
+
 export const LeanMessageSchema = z.object({
   id: z.string(),
   from: EmailAddressSchema,
@@ -62,6 +68,7 @@ export const FullMessageSchema = LeanMessageSchema.extend({
   body: z.string(),
   body_content_type: z.enum(["text", "html"]),
   importance: ImportanceSchema,
+  internet_message_headers: z.array(InternetMessageHeaderSchema),
 });
 export type FullMessage = z.infer<typeof FullMessageSchema>;
 
