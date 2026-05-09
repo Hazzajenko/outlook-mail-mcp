@@ -5,6 +5,7 @@ import {
   type FullMessage,
   ImportanceSchema,
   InferenceClassificationSchema,
+  InternetMessageHeaderSchema,
   type LeanMessage,
 } from "./schemas.ts";
 
@@ -36,6 +37,7 @@ const GraphMessageSchema = z.object({
   from: GraphRecipientSchema.nullable().optional(),
   toRecipients: z.array(GraphRecipientSchema).optional(),
   ccRecipients: z.array(GraphRecipientSchema).optional(),
+  internetMessageHeaders: z.array(InternetMessageHeaderSchema).optional(),
 });
 
 const GraphFolderSchema = z.object({
@@ -84,6 +86,7 @@ export function mapFullMessage(raw: unknown): FullMessage {
     body: m.body?.content ?? "",
     body_content_type: contentTypeRaw === "html" ? "html" : "text",
     importance: m.importance ?? "normal",
+    internet_message_headers: m.internetMessageHeaders ?? [],
   };
 }
 

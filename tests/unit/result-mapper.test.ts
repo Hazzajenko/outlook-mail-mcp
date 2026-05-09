@@ -90,6 +90,25 @@ describe("mapFullMessage", () => {
     expect(m.body).toBe("");
     expect(m.body_content_type).toBe("text");
   });
+
+  it("passes through internet_message_headers when present", () => {
+    const m = mapFullMessage({
+      ...messageFixture,
+      internetMessageHeaders: [
+        { name: "Authentication-Results", value: "spf=fail; dkim=none; dmarc=fail" },
+        { name: "Return-Path", value: "<bounces@soulmate4u.com>" },
+      ],
+    });
+    expect(m.internet_message_headers).toEqual([
+      { name: "Authentication-Results", value: "spf=fail; dkim=none; dmarc=fail" },
+      { name: "Return-Path", value: "<bounces@soulmate4u.com>" },
+    ]);
+  });
+
+  it("defaults internet_message_headers to [] when missing", () => {
+    const m = mapFullMessage(messageFixture);
+    expect(m.internet_message_headers).toEqual([]);
+  });
 });
 
 describe("mapFolder", () => {
