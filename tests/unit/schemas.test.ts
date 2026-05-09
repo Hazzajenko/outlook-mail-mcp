@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FolderSchema, LeanMessageSchema, SearchParamsSchema } from "../../src/core/schemas.js";
+import { FolderSchema, LeanMessageSchema, SearchParamsSchema } from "../../src/core/schemas.ts";
 
 describe("SearchParamsSchema", () => {
   it("applies default top=50 when omitted", () => {
