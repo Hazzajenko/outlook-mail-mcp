@@ -30,13 +30,20 @@ const WELL_KNOWN_FOLDERS = new Set([
 ]);
 
 export async function search(client: GraphClient, params: SearchParams): Promise<SearchResult> {
-  const folderId = params.folder ? await resolveFolderId(client, params.folder) : undefined;
-  const { endpoint, query } = buildGraphQuery(params, folderId);
+  let pagePath: string;
+  let pageQuery: URLSearchParams | undefined;
+  if (params.cursor) {
+    pagePath = params.cursor;
+    pageQuery = undefined;
+  } else {
+    const folderId = params.folder ? await resolveFolderId(client, params.folder) : undefined;
+    const built = buildGraphQuery(params, folderId);
+    pagePath = built.endpoint;
+    pageQuery = built.query;
+  }
 
   const out = [];
-  let more = false;
-  let pagePath: string = endpoint;
-  let pageQuery: URLSearchParams | undefined = query;
+  let nextCursor: string | undefined;
 
   while (true) {
     const raw = await client.get(pagePath, pageQuery);
@@ -44,17 +51,17 @@ export async function search(client: GraphClient, params: SearchParams): Promise
     const remaining = params.top - out.length;
 
     if (value.length > remaining) {
+      // truncating mid-page: nextLink would skip unconsumed items, so don't expose a cursor
       for (let i = 0; i < remaining; i++) {
         out.push(mapLeanMessage(value[i]));
       }
-      more = true;
       break;
     }
 
     for (const v of value) out.push(mapLeanMessage(v));
 
     if (out.length >= params.top) {
-      more = nextLink !== undefined;
+      nextCursor = nextLink;
       break;
     }
     if (nextLink === undefined) break;
@@ -66,7 +73,7 @@ export async function search(client: GraphClient, params: SearchParams): Promise
   return {
     results: out,
     total_returned: out.length,
-    more_available: more,
+    ...(nextCursor !== undefined ? { next_cursor: nextCursor } : {}),
   };
 }
 
