@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { GraphClient } from "./graph-client.ts";
-import { buildGraphQuery, FULL_SELECT } from "./query-builder.ts";
+import { buildGraphQuery, CONVERSATION_SELECT, FULL_SELECT } from "./query-builder.ts";
 import { mapFolder, mapFullMessage, mapLeanMessage } from "./result-mapper.ts";
 import type { Folder, FullMessage, SearchParams, SearchResult } from "./schemas.ts";
 
@@ -92,6 +92,47 @@ export async function getEmail(
   const headers = { Prefer: `outlook.body-content-type="${format}"` };
   const raw = await client.get(`/me/messages/${id}`, query, headers);
   return mapFullMessage(raw);
+}
+
+export interface GetConversationOptions {
+  body_format?: "text" | "html";
+  top?: number;
+}
+
+export async function getConversation(
+  client: GraphClient,
+  conversationId: string,
+  opts: GetConversationOptions = {},
+): Promise<FullMessage[]> {
+  const top = opts.top ?? 200;
+  const format = opts.body_format ?? "text";
+  const escaped = conversationId.replace(/'/g, "''");
+
+  const query = new URLSearchParams();
+  query.set("$top", String(top));
+  query.set("$select", CONVERSATION_SELECT);
+  query.set("$filter", `conversationId eq '${escaped}'`);
+
+  const headers = { Prefer: `outlook.body-content-type="${format}"` };
+
+  const out: FullMessage[] = [];
+  let pagePath: string = "/me/messages";
+  let pageQuery: URLSearchParams | undefined = query;
+
+  while (out.length < top) {
+    const raw = await client.get(pagePath, pageQuery, headers);
+    const { value, "@odata.nextLink": nextLink } = PageSchema.parse(raw);
+    const remaining = top - out.length;
+    const take = Math.min(value.length, remaining);
+    for (let i = 0; i < take; i++) out.push(mapFullMessage(value[i]));
+    if (out.length >= top) break;
+    if (nextLink === undefined) break;
+    pagePath = nextLink;
+    pageQuery = undefined;
+  }
+
+  out.sort((a, b) => a.received_at.localeCompare(b.received_at));
+  return out;
 }
 
 export async function listFolders(client: GraphClient): Promise<Folder[]> {

@@ -23,6 +23,14 @@ export const FULL_SELECT = [
   "internetMessageHeaders",
 ].join(",");
 
+export const CONVERSATION_SELECT = [
+  ...LEAN_SELECT.split(","),
+  "toRecipients",
+  "ccRecipients",
+  "body",
+  "importance",
+].join(",");
+
 export interface GraphQuery {
   endpoint: string;
   query: URLSearchParams;
