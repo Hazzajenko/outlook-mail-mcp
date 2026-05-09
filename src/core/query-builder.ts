@@ -20,6 +20,7 @@ export const FULL_SELECT = [
   "ccRecipients",
   "body",
   "importance",
+  "internetMessageHeaders",
 ].join(",");
 
 export interface GraphQuery {

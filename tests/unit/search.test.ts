@@ -109,6 +109,13 @@ describe("getEmail", () => {
     expect(result.body).toBe("<html><body>Dear candidate...</body></html>");
     expect(result.body_content_type).toBe("html");
   });
+
+  it("requests internetMessageHeaders via $select", async () => {
+    const fake = new FakeGraphClient().enqueue(messageFixture);
+    await getEmail(fake, "AAMkADYzAA");
+
+    expect(fake.calls[0]?.query?.get("$select")).toContain("internetMessageHeaders");
+  });
 });
 
 describe("listFolders", () => {
