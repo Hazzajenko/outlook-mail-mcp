@@ -40,6 +40,22 @@ describe("HttpGraphClient", () => {
       expect(result.skip).toBe("10");
     });
 
+    it("forwards extra headers (Prefer) to the request", async () => {
+      let capturedPrefer: string | null = null;
+      server.use(
+        http.get("https://graph.microsoft.com/v1.0/me/messages/abc", ({ request }) => {
+          capturedPrefer = request.headers.get("prefer");
+          return HttpResponse.json({ id: "abc" });
+        }),
+      );
+
+      await makeClient().get("/me/messages/abc", undefined, {
+        Prefer: 'outlook.body-content-type="text"',
+      });
+
+      expect(capturedPrefer).toBe('outlook.body-content-type="text"');
+    });
+
     it("appends query string from URLSearchParams", async () => {
       let capturedQuery: URLSearchParams | undefined;
       server.use(

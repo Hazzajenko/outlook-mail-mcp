@@ -77,10 +77,20 @@ export async function search(client: GraphClient, params: SearchParams): Promise
   };
 }
 
-export async function getEmail(client: GraphClient, id: string): Promise<FullMessage> {
+export interface GetEmailOptions {
+  body_format?: "text" | "html";
+}
+
+export async function getEmail(
+  client: GraphClient,
+  id: string,
+  opts: GetEmailOptions = {},
+): Promise<FullMessage> {
   const query = new URLSearchParams();
   query.set("$select", FULL_SELECT);
-  const raw = await client.get(`/me/messages/${id}`, query);
+  const format = opts.body_format ?? "text";
+  const headers = { Prefer: `outlook.body-content-type="${format}"` };
+  const raw = await client.get(`/me/messages/${id}`, query, headers);
   return mapFullMessage(raw);
 }
 

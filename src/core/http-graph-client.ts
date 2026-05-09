@@ -19,7 +19,11 @@ export class HttpGraphClient implements GraphClient {
     this.fetchFn = opts.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
-  async get(pathOrUrl: string, query?: URLSearchParams): Promise<unknown> {
+  async get(
+    pathOrUrl: string,
+    query?: URLSearchParams,
+    headers?: Record<string, string>,
+  ): Promise<unknown> {
     const base = pathOrUrl.startsWith("http") ? pathOrUrl : `${this.baseUrl}${pathOrUrl}`;
     const url = query ? `${base}?${query.toString()}` : base;
 
@@ -28,6 +32,7 @@ export class HttpGraphClient implements GraphClient {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
+        ...(headers ?? {}),
       },
     });
 
