@@ -48,6 +48,19 @@ describe("SearchParamsSchema", () => {
     expect(() => SearchParamsSchema.parse({ importance: "urgent" })).toThrow();
   });
 
+  it("accepts inference_classification focused/other", () => {
+    expect(
+      SearchParamsSchema.parse({ inference_classification: "focused" }).inference_classification,
+    ).toBe("focused");
+    expect(
+      SearchParamsSchema.parse({ inference_classification: "other" }).inference_classification,
+    ).toBe("other");
+  });
+
+  it("rejects invalid inference_classification", () => {
+    expect(() => SearchParamsSchema.parse({ inference_classification: "junk" })).toThrow();
+  });
+
   it("rejects unknown fields", () => {
     expect(() => SearchParamsSchema.parse({ random_field: "x" })).toThrow();
   });
