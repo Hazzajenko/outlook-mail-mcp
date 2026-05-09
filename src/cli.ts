@@ -12,7 +12,7 @@ import { createTokenProvider, type TokenProvider } from "./core/auth.ts";
 import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
 import { type SearchParamsInput, SearchParamsSchema } from "./core/schemas.ts";
-import { getEmail, listFolders, search } from "./core/search.ts";
+import { getConversation, getEmail, listFolders, search } from "./core/search.ts";
 
 const SearchOptsSchema = z.object({
   query: z.string().optional(),
@@ -132,6 +132,32 @@ program
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     } else {
       process.stdout.write(renderFullMessage(result));
+    }
+  });
+
+program
+  .command("conversation <id>")
+  .description("Get full email thread by conversation_id")
+  .option("--body-format <fmt>", "text | html (default: text)")
+  .option("--top <n>", "max messages (default 200)", (v) => parseInt(v, 10))
+  .option("--json", "JSON output")
+  .action(async (id: string, rawOpts: unknown) => {
+    const opts = z
+      .object({
+        json: z.boolean().optional(),
+        bodyFormat: z.enum(["text", "html"]).optional(),
+        top: z.number().int().optional(),
+      })
+      .parse(rawOpts);
+    const client = buildClient();
+    const convoOpts: { body_format?: "text" | "html"; top?: number } = {};
+    if (opts.bodyFormat) convoOpts.body_format = opts.bodyFormat;
+    if (opts.top !== undefined) convoOpts.top = opts.top;
+    const messages = await getConversation(client, id, convoOpts);
+    if (opts.json) {
+      process.stdout.write(`${JSON.stringify(messages, null, 2)}\n`);
+    } else {
+      for (const m of messages) process.stdout.write(renderFullMessage(m));
     }
   });
 
