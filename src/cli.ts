@@ -113,11 +113,21 @@ program
 program
   .command("get <id>")
   .description("Get full email by id")
+  .option("--body-format <fmt>", "text | html (default: text)")
   .option("--json", "JSON output")
   .action(async (id: string, rawOpts: unknown) => {
-    const opts = z.object({ json: z.boolean().optional() }).parse(rawOpts);
+    const opts = z
+      .object({
+        json: z.boolean().optional(),
+        bodyFormat: z.enum(["text", "html"]).optional(),
+      })
+      .parse(rawOpts);
     const client = buildClient();
-    const result = await getEmail(client, id);
+    const result = await getEmail(
+      client,
+      id,
+      opts.bodyFormat ? { body_format: opts.bodyFormat } : {},
+    );
     if (opts.json) {
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     } else {

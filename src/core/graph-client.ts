@@ -1,5 +1,9 @@
 export interface GraphClient {
-  get(pathOrUrl: string, query?: URLSearchParams): Promise<unknown>;
+  get(
+    pathOrUrl: string,
+    query?: URLSearchParams,
+    headers?: Record<string, string>,
+  ): Promise<unknown>;
 }
 
 export interface GraphPage {
