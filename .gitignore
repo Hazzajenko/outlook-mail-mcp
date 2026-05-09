@@ -1,0 +1,14 @@
+node_modules
+dist
+*.log
+.DS_Store
+
+# tokens / local state
+.data
+*.cache.json
+msal-cache.json
+
+# editor
+.vscode
+.idea
+*.swp
