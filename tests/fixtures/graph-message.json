@@ -1,0 +1,27 @@
+{
+  "id": "AAMkADYzAA",
+  "receivedDateTime": "2026-05-08T14:43:14Z",
+  "hasAttachments": false,
+  "subject": "Assessment invitation",
+  "bodyPreview": "Dear candidate, please complete the assessment by Friday.",
+  "importance": "high",
+  "conversationId": "AAQkADYz",
+  "isRead": false,
+  "webLink": "https://outlook.office.com/mail/inbox/id/AAMkADYzAA",
+  "body": {
+    "contentType": "HTML",
+    "content": "<html><body>Dear candidate...</body></html>"
+  },
+  "from": {
+    "emailAddress": {
+      "name": "Goldman Recruiter",
+      "address": "recruiter@goldman.com"
+    }
+  },
+  "toRecipients": [
+    { "emailAddress": { "name": "Harry Jenkins", "address": "jenkinsh1@outlook.com" } }
+  ],
+  "ccRecipients": [
+    { "emailAddress": { "address": "team@goldman.com" } }
+  ]
+}
