@@ -13,6 +13,9 @@ const dateInput = z.string().transform((v, ctx) => {
 export const ImportanceSchema = z.enum(["low", "normal", "high"]);
 export type Importance = z.infer<typeof ImportanceSchema>;
 
+export const InferenceClassificationSchema = z.enum(["focused", "other"]);
+export type InferenceClassification = z.infer<typeof InferenceClassificationSchema>;
+
 export const SearchParamsSchema = z.strictObject({
   query: z.string().optional(),
   from: z.string().optional(),
@@ -47,6 +50,8 @@ export const LeanMessageSchema = z.object({
   conversation_id: z.string(),
   web_link: z.string(),
   body_preview: z.string(),
+  inference_classification: InferenceClassificationSchema.optional(),
+  parent_folder_id: z.string().optional(),
 });
 export type LeanMessage = z.infer<typeof LeanMessageSchema>;
 
