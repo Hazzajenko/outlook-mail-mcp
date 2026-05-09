@@ -36,6 +36,7 @@ export function renderFullMessage(m: FullMessage): string {
   lines.push(`Subject: ${m.subject || "(no subject)"}`);
   lines.push(`Date:    ${formatDate(m.received_at)}`);
   if (m.importance !== "normal") lines.push(`Importance: ${m.importance}`);
+  if (m.inference_classification === "other") lines.push("Classification: other");
   if (m.has_attachment) lines.push("Attachments: yes");
   if (m.body_content_type === "html") {
     lines.push("Body type: html (raw)");
