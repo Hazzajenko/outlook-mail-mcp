@@ -142,6 +142,21 @@ describe("renderFullMessage", () => {
     expect(out).not.toContain("Authentication-Results");
     expect(out).not.toContain("Return-Path");
   });
+
+  it("flags inference_classification when 'other'", () => {
+    const out = renderFullMessage({ ...full, inference_classification: "other" });
+    expect(out).toMatch(/other/i);
+  });
+
+  it("does not flag inference_classification when 'focused'", () => {
+    const out = renderFullMessage({ ...full, inference_classification: "focused" });
+    expect(out).not.toMatch(/^Classification:/m);
+  });
+
+  it("does not flag inference_classification when absent", () => {
+    const out = renderFullMessage(full);
+    expect(out).not.toMatch(/^Classification:/m);
+  });
 });
 
 describe("renderFolders", () => {
