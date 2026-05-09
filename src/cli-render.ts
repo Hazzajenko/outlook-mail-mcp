@@ -26,6 +26,8 @@ export function renderSearchResults(result: SearchResult): string {
   return `${lines.join("\n")}\n`;
 }
 
+const AUTH_HEADERS = ["Authentication-Results", "Return-Path"];
+
 export function renderFullMessage(m: FullMessage): string {
   const lines: string[] = [];
   lines.push(`From:    ${formatAddress(m.from)}`);
@@ -37,6 +39,10 @@ export function renderFullMessage(m: FullMessage): string {
   if (m.has_attachment) lines.push("Attachments: yes");
   if (m.body_content_type === "html") {
     lines.push("Body type: html (raw)");
+  }
+  for (const name of AUTH_HEADERS) {
+    const h = m.internet_message_headers.find((x) => x.name === name);
+    if (h) lines.push(`${h.name}: ${h.value}`);
   }
   lines.push(DIVIDER);
   lines.push(m.body);

@@ -79,6 +79,7 @@ describe("renderFullMessage", () => {
     body: "Plain body content here.",
     body_content_type: "text",
     importance: "high",
+    internet_message_headers: [],
   };
 
   it("includes from, to, subject, date, body", () => {
@@ -111,6 +112,35 @@ describe("renderFullMessage", () => {
   it("notes html content type warning", () => {
     const out = renderFullMessage({ ...full, body_content_type: "html", body: "<p>x</p>" });
     expect(out).toMatch(/html/i);
+  });
+
+  it("renders Authentication-Results header when present", () => {
+    const out = renderFullMessage({
+      ...full,
+      internet_message_headers: [
+        { name: "Authentication-Results", value: "spf=pass; dkim=pass; dmarc=pass" },
+      ],
+    });
+    expect(out).toContain("Authentication-Results");
+    expect(out).toContain("spf=pass; dkim=pass; dmarc=pass");
+  });
+
+  it("renders Return-Path header when present", () => {
+    const out = renderFullMessage({
+      ...full,
+      internet_message_headers: [{ name: "Return-Path", value: "<bounces@example.com>" }],
+    });
+    expect(out).toContain("Return-Path");
+    expect(out).toContain("bounces@example.com");
+  });
+
+  it("does not render auth section when no relevant headers", () => {
+    const out = renderFullMessage({
+      ...full,
+      internet_message_headers: [{ name: "X-Random-Header", value: "noise" }],
+    });
+    expect(out).not.toContain("Authentication-Results");
+    expect(out).not.toContain("Return-Path");
   });
 });
 
