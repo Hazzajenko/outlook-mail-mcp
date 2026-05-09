@@ -4,6 +4,7 @@ import {
   type Folder,
   type FullMessage,
   ImportanceSchema,
+  InferenceClassificationSchema,
   type LeanMessage,
 } from "./schemas.ts";
 
@@ -21,7 +22,9 @@ const GraphMessageSchema = z.object({
   subject: z.string().nullable().optional(),
   bodyPreview: z.string().nullable().optional(),
   importance: ImportanceSchema.optional(),
+  inferenceClassification: InferenceClassificationSchema.optional(),
   conversationId: z.string(),
+  parentFolderId: z.string().optional(),
   isRead: z.boolean(),
   webLink: z.string(),
   body: z
@@ -62,6 +65,8 @@ function leanFromParsed(m: GraphMessage): LeanMessage {
     conversation_id: m.conversationId,
     web_link: m.webLink,
     body_preview: m.bodyPreview ?? "",
+    ...(m.inferenceClassification ? { inference_classification: m.inferenceClassification } : {}),
+    ...(m.parentFolderId ? { parent_folder_id: m.parentFolderId } : {}),
   };
 }
 

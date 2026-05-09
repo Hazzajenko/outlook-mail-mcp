@@ -33,6 +33,22 @@ describe("mapLeanMessage", () => {
     const m = mapLeanMessage({ ...messageFixture, bodyPreview: null });
     expect(m.body_preview).toBe("");
   });
+
+  it("passes through inference_classification when present", () => {
+    const m = mapLeanMessage({ ...messageFixture, inferenceClassification: "other" });
+    expect(m.inference_classification).toBe("other");
+  });
+
+  it("passes through parent_folder_id when present", () => {
+    const m = mapLeanMessage({ ...messageFixture, parentFolderId: "fold-junk" });
+    expect(m.parent_folder_id).toBe("fold-junk");
+  });
+
+  it("omits inference_classification + parent_folder_id when missing", () => {
+    const m = mapLeanMessage(messageFixture);
+    expect(m).not.toHaveProperty("inference_classification");
+    expect(m).not.toHaveProperty("parent_folder_id");
+  });
 });
 
 describe("mapFullMessage", () => {

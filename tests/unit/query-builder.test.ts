@@ -29,6 +29,12 @@ describe("buildGraphQuery", () => {
       expect(query.has("$filter")).toBe(false);
       expect(query.has("$search")).toBe(false);
     });
+
+    it("$select includes inferenceClassification + parentFolderId", () => {
+      const { query } = buildGraphQuery(params());
+      expect(query.get("$select")).toContain("inferenceClassification");
+      expect(query.get("$select")).toContain("parentFolderId");
+    });
   });
 
   describe("$filter path (no free text)", () => {
