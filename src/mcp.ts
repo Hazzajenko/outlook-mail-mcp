@@ -1,0 +1,79 @@
+#!/usr/bin/env node
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { createTokenProvider } from "./core/auth.ts";
+import type { GraphClient } from "./core/graph-client.ts";
+import { HttpGraphClient } from "./core/http-graph-client.ts";
+import { SearchParamsSchema } from "./core/schemas.ts";
+import { getEmail, listFolders, search } from "./core/search.ts";
+
+let cachedClient: GraphClient | undefined;
+function client(): GraphClient {
+  if (cachedClient !== undefined) return cachedClient;
+  const clientId = process.env.OUTLOOK_QUERY_CLIENT_ID;
+  if (!clientId) {
+    throw new Error("OUTLOOK_QUERY_CLIENT_ID env var not set.");
+  }
+  const tenantId = process.env.OUTLOOK_QUERY_TENANT_ID;
+  const tokenProvider = createTokenProvider(
+    tenantId !== undefined ? { clientId, tenantId } : { clientId },
+  );
+  cachedClient = new HttpGraphClient({ getToken: () => tokenProvider.getToken() });
+  return cachedClient;
+}
+
+const server = new McpServer({
+  name: "outlook-query",
+  version: "0.0.0",
+});
+
+server.registerTool(
+  "search_emails",
+  {
+    title: "Search Outlook emails",
+    description:
+      "Search the user's Outlook mailbox via Microsoft Graph. Returns lean message metadata + body preview. Combine free-text query with structured filters (from, subject, since, etc.). Use get_email for full body.",
+    inputSchema: SearchParamsSchema.shape,
+  },
+  async (args) => {
+    const result = await search(client(), args);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+server.registerTool(
+  "get_email",
+  {
+    title: "Get full email by id",
+    description: "Fetch the full body and headers of one email by its Graph id.",
+    inputSchema: { id: z.string().describe("Graph message id") },
+  },
+  async ({ id }) => {
+    const result = await getEmail(client(), id);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+server.registerTool(
+  "list_folders",
+  {
+    title: "List mail folders",
+    description:
+      "List the user's mail folders (Inbox, Sent, custom folders, etc.) with item counts. Use to discover folder names for search_emails.",
+    inputSchema: {},
+  },
+  async () => {
+    const result = await listFolders(client());
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
