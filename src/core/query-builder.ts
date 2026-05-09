@@ -10,6 +10,8 @@ export const LEAN_SELECT = [
   "conversationId",
   "webLink",
   "bodyPreview",
+  "inferenceClassification",
+  "parentFolderId",
 ].join(",");
 
 export const FULL_SELECT = [
