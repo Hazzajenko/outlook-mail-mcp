@@ -1,0 +1,177 @@
+import { describe, expect, it } from "vitest";
+import { buildGraphQuery } from "../../src/core/query-builder.ts";
+import type { SearchParams } from "../../src/core/schemas.ts";
+
+const params = (over: Partial<SearchParams> = {}): SearchParams => ({
+  top: 50,
+  ...over,
+});
+
+describe("buildGraphQuery", () => {
+  describe("endpoint", () => {
+    it("default /me/messages", () => {
+      expect(buildGraphQuery(params()).endpoint).toBe("/me/messages");
+    });
+
+    it("folder-scoped when folderId given", () => {
+      expect(buildGraphQuery(params(), "fold-1").endpoint).toBe("/me/mailFolders/fold-1/messages");
+    });
+  });
+
+  describe("baseline (no filters)", () => {
+    it("sets $top, $select, $orderby; no $filter, no $search", () => {
+      const { query } = buildGraphQuery(params({ top: 25 }));
+      expect(query.get("$top")).toBe("25");
+      expect(query.get("$select")).toContain("id");
+      expect(query.get("$select")).toContain("subject");
+      expect(query.get("$select")).toContain("receivedDateTime");
+      expect(query.get("$orderby")).toBe("receivedDateTime desc");
+      expect(query.has("$filter")).toBe(false);
+      expect(query.has("$search")).toBe(false);
+    });
+  });
+
+  describe("$filter path (no free text)", () => {
+    it("since -> receivedDateTime ge ISO", () => {
+      const { query } = buildGraphQuery(params({ since: new Date("2026-05-01T00:00:00Z") }));
+      expect(query.get("$filter")).toBe("receivedDateTime ge 2026-05-01T00:00:00.000Z");
+    });
+
+    it("until -> receivedDateTime le ISO", () => {
+      const { query } = buildGraphQuery(params({ until: new Date("2026-05-09T00:00:00Z") }));
+      expect(query.get("$filter")).toBe("receivedDateTime le 2026-05-09T00:00:00.000Z");
+    });
+
+    it("since AND until", () => {
+      const { query } = buildGraphQuery(
+        params({
+          since: new Date("2026-05-01T00:00:00Z"),
+          until: new Date("2026-05-09T00:00:00Z"),
+        }),
+      );
+      expect(query.get("$filter")).toBe(
+        "receivedDateTime ge 2026-05-01T00:00:00.000Z and receivedDateTime le 2026-05-09T00:00:00.000Z",
+      );
+    });
+
+    it("is_unread true -> isRead eq false", () => {
+      expect(buildGraphQuery(params({ is_unread: true })).query.get("$filter")).toBe(
+        "isRead eq false",
+      );
+    });
+
+    it("is_unread false -> isRead eq true", () => {
+      expect(buildGraphQuery(params({ is_unread: false })).query.get("$filter")).toBe(
+        "isRead eq true",
+      );
+    });
+
+    it("importance -> importance eq 'value'", () => {
+      expect(buildGraphQuery(params({ importance: "high" })).query.get("$filter")).toBe(
+        "importance eq 'high'",
+      );
+    });
+
+    it("has_attachment -> hasAttachments eq true", () => {
+      expect(buildGraphQuery(params({ has_attachment: true })).query.get("$filter")).toBe(
+        "hasAttachments eq true",
+      );
+    });
+
+    it("multiple structured filters AND-joined", () => {
+      const { query } = buildGraphQuery(
+        params({
+          has_attachment: true,
+          importance: "high",
+          is_unread: true,
+          since: new Date("2026-05-01T00:00:00Z"),
+        }),
+      );
+      expect(query.get("$filter")).toBe(
+        "receivedDateTime ge 2026-05-01T00:00:00.000Z and isRead eq false and hasAttachments eq true and importance eq 'high'",
+      );
+    });
+
+    it("keeps $orderby in $filter path", () => {
+      const { query } = buildGraphQuery(params({ has_attachment: true }));
+      expect(query.get("$orderby")).toBe("receivedDateTime desc");
+    });
+  });
+
+  describe("$search path (any text/people field present)", () => {
+    it("query alone -> $search 'query'", () => {
+      const { query } = buildGraphQuery(params({ query: "interview" }));
+      expect(query.get("$search")).toBe('"interview"');
+      expect(query.has("$filter")).toBe(false);
+      expect(query.has("$orderby")).toBe(false);
+    });
+
+    it("from -> from:value", () => {
+      expect(buildGraphQuery(params({ from: "example.com" })).query.get("$search")).toBe(
+        '"from:example.com"',
+      );
+    });
+
+    it("to -> to:value", () => {
+      expect(buildGraphQuery(params({ to: "me@x.com" })).query.get("$search")).toBe(
+        '"to:me@x.com"',
+      );
+    });
+
+    it("subject_contains -> subject:value", () => {
+      expect(buildGraphQuery(params({ subject_contains: "assessment" })).query.get("$search")).toBe(
+        '"subject:assessment"',
+      );
+    });
+
+    it("body_contains -> body:value", () => {
+      expect(buildGraphQuery(params({ body_contains: "schedule" })).query.get("$search")).toBe(
+        '"body:schedule"',
+      );
+    });
+
+    it("multiple fields space-joined; query first", () => {
+      const { query } = buildGraphQuery(
+        params({ query: "interview", from: "example.com", subject_contains: "assessment" }),
+      );
+      expect(query.get("$search")).toBe('"interview from:example.com subject:assessment"');
+    });
+
+    it("structured booleans fold into KQL when text present", () => {
+      const { query } = buildGraphQuery(
+        params({ query: "interview", has_attachment: true, is_unread: true, importance: "high" }),
+      );
+      const s = query.get("$search");
+      expect(s).toContain("interview");
+      expect(s).toContain("hasattachment:yes");
+      expect(s).toContain("read:no");
+      expect(s).toContain("importance:high");
+    });
+
+    it("date range folds into KQL as received>= / received<=", () => {
+      const { query } = buildGraphQuery(
+        params({
+          query: "interview",
+          since: new Date("2026-05-01T00:00:00Z"),
+          until: new Date("2026-05-09T00:00:00Z"),
+        }),
+      );
+      const s = query.get("$search") ?? "";
+      expect(s).toContain("received>=2026-05-01");
+      expect(s).toContain("received<=2026-05-09");
+    });
+
+    it("$filter omitted in search path", () => {
+      const { query } = buildGraphQuery(params({ query: "x", has_attachment: true }));
+      expect(query.has("$filter")).toBe(false);
+    });
+  });
+
+  describe("OData string escaping", () => {
+    it("doubles single quotes in folder ID is not relevant here — enums only need exact match", () => {
+      expect(buildGraphQuery(params({ importance: "low" })).query.get("$filter")).toBe(
+        "importance eq 'low'",
+      );
+    });
+  });
+});
