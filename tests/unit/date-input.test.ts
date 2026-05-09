@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDateInput } from "../../src/core/date-input.js";
+import { parseDateInput } from "../../src/core/date-input.ts";
 
 const NOW = new Date("2026-05-09T12:00:00Z");
 
