@@ -35,6 +35,11 @@ export function buildGraphQuery(params: SearchParams, folderId?: string): GraphQ
   query.set("$select", LEAN_SELECT);
 
   if (hasFreeText(params)) {
+    if (params.inference_classification) {
+      throw new Error(
+        "inference_classification cannot be combined with text search (query/from/to/subject_contains/body_contains); Graph KQL has no inference keyword",
+      );
+    }
     query.set("$search", `"${buildKql(params)}"`);
   } else {
     query.set("$orderby", "receivedDateTime desc");
@@ -83,6 +88,9 @@ function buildOdataFilter(p: SearchParams): string {
   if (p.is_unread !== undefined) parts.push(`isRead eq ${!p.is_unread}`);
   if (p.has_attachment !== undefined) parts.push(`hasAttachments eq ${p.has_attachment}`);
   if (p.importance) parts.push(`importance eq '${p.importance}'`);
+  if (p.inference_classification) {
+    parts.push(`inferenceClassification eq '${p.inference_classification}'`);
+  }
   return parts.join(" and ");
 }
 

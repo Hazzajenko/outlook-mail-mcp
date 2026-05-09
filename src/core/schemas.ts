@@ -28,6 +28,7 @@ export const SearchParamsSchema = z.strictObject({
   folder: z.string().optional(),
   is_unread: z.boolean().optional(),
   importance: ImportanceSchema.optional(),
+  inference_classification: InferenceClassificationSchema.optional(),
   top: z.number().int().min(1).max(500).default(50),
 });
 

@@ -84,6 +84,18 @@ describe("buildGraphQuery", () => {
       );
     });
 
+    it("inference_classification -> inferenceClassification eq 'focused'", () => {
+      expect(
+        buildGraphQuery(params({ inference_classification: "focused" })).query.get("$filter"),
+      ).toBe("inferenceClassification eq 'focused'");
+    });
+
+    it("inference_classification 'other' filters as 'other'", () => {
+      expect(
+        buildGraphQuery(params({ inference_classification: "other" })).query.get("$filter"),
+      ).toBe("inferenceClassification eq 'other'");
+    });
+
     it("multiple structured filters AND-joined", () => {
       const { query } = buildGraphQuery(
         params({
@@ -170,6 +182,20 @@ describe("buildGraphQuery", () => {
     it("$filter omitted in search path", () => {
       const { query } = buildGraphQuery(params({ query: "x", has_attachment: true }));
       expect(query.has("$filter")).toBe(false);
+    });
+  });
+
+  describe("inference_classification + text search", () => {
+    it("throws when combined with query (KQL has no inference keyword)", () => {
+      expect(() =>
+        buildGraphQuery(params({ query: "interview", inference_classification: "focused" })),
+      ).toThrow(/inference_classification/);
+    });
+
+    it("throws when combined with from", () => {
+      expect(() =>
+        buildGraphQuery(params({ from: "x@y.com", inference_classification: "focused" })),
+      ).toThrow(/inference_classification/);
     });
   });
 
