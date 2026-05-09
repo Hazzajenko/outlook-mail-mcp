@@ -27,6 +27,7 @@ const SearchOptsSchema = z.object({
   read: z.boolean().optional(),
   folder: z.string().optional(),
   importance: z.string().optional(),
+  inferenceClassification: z.string().optional(),
   top: z.number().int().optional(),
   json: z.boolean().optional(),
 });
@@ -65,6 +66,9 @@ function optsToSearchParams(opts: SearchOpts): SearchParamsInput {
   if (opts.importance !== undefined) {
     raw.importance = opts.importance as "low" | "normal" | "high";
   }
+  if (opts.inferenceClassification !== undefined) {
+    raw.inference_classification = opts.inferenceClassification as "focused" | "other";
+  }
   if (opts.top !== undefined) raw.top = opts.top;
   return raw;
 }
@@ -91,6 +95,7 @@ program
   .option("--read", "only read (already-opened)")
   .option("--folder <name>", "folder (well-known: inbox/sent/archive/... or custom name)")
   .option("--importance <level>", "low | normal | high")
+  .option("--inference-classification <value>", "focused | other (Outlook Focused/Other split)")
   .option("--top <n>", "max results (1-500, default 50)", (v) => parseInt(v, 10))
   .option("--json", "JSON output")
   .action(async (rawOpts: unknown) => {
