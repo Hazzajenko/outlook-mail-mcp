@@ -23,7 +23,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "biome check src tests",
-    "format": "biome format --write src tests",
+    "fix": "biome check --write src tests",
     "check": "biome check --write src tests && tsc --noEmit && vitest run"
   },
   "dependencies": {
