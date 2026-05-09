@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+try {
+  process.loadEnvFile();
+} catch {
+  // no .env present; fine
+}
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";

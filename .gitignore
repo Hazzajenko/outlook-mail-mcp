@@ -8,6 +8,11 @@ dist
 *.cache.json
 msal-cache.json
 
+# env
+.env
+.env.local
+.env.*.local
+
 # editor
 .vscode
 .idea
