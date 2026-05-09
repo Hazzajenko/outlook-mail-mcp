@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SearchParams } from "../../src/core/schemas.ts";
-import { getEmail, listFolders, search } from "../../src/core/search.ts";
+import { getConversation, getEmail, listFolders, search } from "../../src/core/search.ts";
 import folderFixture from "../fixtures/graph-folder.json" with { type: "json" };
 import messageFixture from "../fixtures/graph-message.json" with { type: "json" };
 import { FakeGraphClient } from "../helpers/fake-graph-client.ts";
@@ -175,5 +175,113 @@ describe("listFolders", () => {
     const result = await listFolders(fake);
 
     expect(result.map((f) => f.display_name)).toEqual(["Inbox", "Sent"]);
+  });
+});
+
+describe("getConversation", () => {
+  const convoMsg = (id: string, receivedAt: string) => ({
+    ...messageFixture,
+    id,
+    receivedDateTime: receivedAt,
+    conversationId: "conv-x",
+  });
+
+  it("filters by conversationId and returns FullMessage array", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [convoMsg("a", "2026-05-08T10:00:00Z"), convoMsg("b", "2026-05-08T11:00:00Z")],
+    });
+    const result = await getConversation(fake, "conv-x");
+
+    expect(fake.calls[0]?.pathOrUrl).toBe("/me/messages");
+    expect(fake.calls[0]?.query?.get("$filter")).toBe("conversationId eq 'conv-x'");
+    expect(result.map((m) => m.id)).toEqual(["a", "b"]);
+    expect(result[0]?.body).toBeDefined();
+  });
+
+  it("sorts results ascending by received_at (chronological)", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [
+        convoMsg("c", "2026-05-08T12:00:00Z"),
+        convoMsg("a", "2026-05-08T10:00:00Z"),
+        convoMsg("b", "2026-05-08T11:00:00Z"),
+      ],
+    });
+    const result = await getConversation(fake, "conv-x");
+
+    expect(result.map((m) => m.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("does not send $orderby (would trigger InefficientFilter on Graph)", async () => {
+    const fake = new FakeGraphClient().enqueue({ value: [] });
+    await getConversation(fake, "conv-x");
+
+    expect(fake.calls[0]?.query?.has("$orderby")).toBe(false);
+  });
+
+  it('sends Prefer: outlook.body-content-type="text" by default', async () => {
+    const fake = new FakeGraphClient().enqueue({ value: [] });
+    await getConversation(fake, "conv-x");
+
+    expect(fake.calls[0]?.headers).toEqual({
+      Prefer: 'outlook.body-content-type="text"',
+    });
+  });
+
+  it("sends html Prefer when body_format='html'", async () => {
+    const fake = new FakeGraphClient().enqueue({ value: [] });
+    await getConversation(fake, "conv-x", { body_format: "html" });
+
+    expect(fake.calls[0]?.headers).toEqual({
+      Prefer: 'outlook.body-content-type="html"',
+    });
+  });
+
+  it("escapes single quotes in conversationId per OData", async () => {
+    const fake = new FakeGraphClient().enqueue({ value: [] });
+    await getConversation(fake, "weird'id");
+
+    expect(fake.calls[0]?.query?.get("$filter")).toBe("conversationId eq 'weird''id'");
+  });
+
+  it("paginates via nextLink", async () => {
+    const fake = new FakeGraphClient()
+      .enqueue({
+        value: [convoMsg("a", "2026-05-08T10:00:00Z")],
+        "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skip=1",
+      })
+      .enqueue({ value: [convoMsg("b", "2026-05-08T11:00:00Z")] });
+    const result = await getConversation(fake, "conv-x");
+
+    expect(fake.calls).toHaveLength(2);
+    expect(result.map((m) => m.id)).toEqual(["a", "b"]);
+  });
+
+  it("re-sends Prefer header on paginated nextLink calls", async () => {
+    const fake = new FakeGraphClient()
+      .enqueue({
+        value: [convoMsg("a", "2026-05-08T10:00:00Z")],
+        "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skip=1",
+      })
+      .enqueue({ value: [convoMsg("b", "2026-05-08T11:00:00Z")] });
+    await getConversation(fake, "conv-x");
+
+    expect(fake.calls[1]?.headers).toEqual({
+      Prefer: 'outlook.body-content-type="text"',
+    });
+  });
+
+  it("respects top cap and stops paginating", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [
+        convoMsg("a", "2026-05-08T10:00:00Z"),
+        convoMsg("b", "2026-05-08T11:00:00Z"),
+        convoMsg("c", "2026-05-08T12:00:00Z"),
+      ],
+      "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skip=3",
+    });
+    const result = await getConversation(fake, "conv-x", { top: 2 });
+
+    expect(fake.calls).toHaveLength(1);
+    expect(result).toHaveLength(2);
   });
 });

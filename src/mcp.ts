@@ -12,7 +12,7 @@ import { createTokenProvider } from "./core/auth.ts";
 import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
 import { SearchParamsSchema } from "./core/schemas.ts";
-import { getEmail, listFolders, search } from "./core/search.ts";
+import { getConversation, getEmail, listFolders, search } from "./core/search.ts";
 
 let cachedClient: GraphClient | undefined;
 function client(): GraphClient {
@@ -63,6 +63,35 @@ server.registerTool(
   },
   async ({ id, body_format }) => {
     const result = await getEmail(client(), id, body_format ? { body_format } : {});
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+server.registerTool(
+  "get_conversation",
+  {
+    title: "Get full email thread by conversation_id",
+    description:
+      "Fetch all messages in a conversation/thread, sorted oldest-first, with bodies. Use the conversation_id from search_emails results. Body returned as plain text by default; pass body_format='html' for raw HTML. Capped at 200 messages by default.",
+    inputSchema: {
+      conversation_id: z.string().describe("Graph conversationId from a search_emails result"),
+      body_format: z.enum(["text", "html"]).optional().describe("Body format; defaults to 'text'"),
+      top: z
+        .number()
+        .int()
+        .min(1)
+        .max(1000)
+        .optional()
+        .describe("Max messages to return; defaults to 200"),
+    },
+  },
+  async ({ conversation_id, body_format, top }) => {
+    const opts: { body_format?: "text" | "html"; top?: number } = {};
+    if (body_format) opts.body_format = body_format;
+    if (top !== undefined) opts.top = top;
+    const result = await getConversation(client(), conversation_id, opts);
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
