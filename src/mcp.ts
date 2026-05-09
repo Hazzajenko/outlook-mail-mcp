@@ -54,11 +54,15 @@ server.registerTool(
   "get_email",
   {
     title: "Get full email by id",
-    description: "Fetch the full body and headers of one email by its Graph id.",
-    inputSchema: { id: z.string().describe("Graph message id") },
+    description:
+      "Fetch the full body and headers of one email by its Graph id. Body returned as plain text by default (server-side HTML→text conversion); pass body_format='html' for raw HTML.",
+    inputSchema: {
+      id: z.string().describe("Graph message id"),
+      body_format: z.enum(["text", "html"]).optional().describe("Body format; defaults to 'text'"),
+    },
   },
-  async ({ id }) => {
-    const result = await getEmail(client(), id);
+  async ({ id, body_format }) => {
+    const result = await getEmail(client(), id, body_format ? { body_format } : {});
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };

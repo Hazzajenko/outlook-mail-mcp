@@ -126,6 +126,33 @@ describe("getEmail", () => {
 
     expect(fake.calls[0]?.query?.get("$select")).toContain("internetMessageHeaders");
   });
+
+  it('sends Prefer: outlook.body-content-type="text" by default', async () => {
+    const fake = new FakeGraphClient().enqueue(messageFixture);
+    await getEmail(fake, "AAMkADYzAA");
+
+    expect(fake.calls[0]?.headers).toEqual({
+      Prefer: 'outlook.body-content-type="text"',
+    });
+  });
+
+  it("sends Prefer html when body_format='html'", async () => {
+    const fake = new FakeGraphClient().enqueue(messageFixture);
+    await getEmail(fake, "AAMkADYzAA", { body_format: "html" });
+
+    expect(fake.calls[0]?.headers).toEqual({
+      Prefer: 'outlook.body-content-type="html"',
+    });
+  });
+
+  it("body_format='text' is explicit (same as default)", async () => {
+    const fake = new FakeGraphClient().enqueue(messageFixture);
+    await getEmail(fake, "AAMkADYzAA", { body_format: "text" });
+
+    expect(fake.calls[0]?.headers).toEqual({
+      Prefer: 'outlook.body-content-type="text"',
+    });
+  });
 });
 
 describe("listFolders", () => {
