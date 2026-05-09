@@ -30,6 +30,7 @@ export const SearchParamsSchema = z.strictObject({
   importance: ImportanceSchema.optional(),
   inference_classification: InferenceClassificationSchema.optional(),
   top: z.number().int().min(1).max(500).default(50),
+  cursor: z.string().optional(),
 });
 
 export type SearchParamsInput = z.input<typeof SearchParamsSchema>;
@@ -84,6 +85,6 @@ export type Folder = z.infer<typeof FolderSchema>;
 export const SearchResultSchema = z.object({
   results: z.array(LeanMessageSchema),
   total_returned: z.number().int(),
-  more_available: z.boolean(),
+  next_cursor: z.string().optional(),
 });
 export type SearchResult = z.infer<typeof SearchResultSchema>;
