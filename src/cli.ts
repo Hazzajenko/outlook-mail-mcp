@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import { z } from "zod";
 import { renderFolders, renderFullMessage, renderSearchResults } from "./cli-render.ts";
-import { createTokenProvider } from "./core/auth.ts";
+import { createTokenProvider, type TokenProvider } from "./core/auth.ts";
 import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
 import { type SearchParamsInput, SearchParamsSchema } from "./core/schemas.ts";
@@ -27,7 +27,7 @@ const SearchOptsSchema = z.object({
 
 type SearchOpts = z.infer<typeof SearchOptsSchema>;
 
-function buildClient(): GraphClient {
+function buildTokenProvider(): TokenProvider {
   const clientId = process.env.OUTLOOK_QUERY_CLIENT_ID;
   if (!clientId) {
     throw new Error(
@@ -35,10 +35,14 @@ function buildClient(): GraphClient {
     );
   }
   const tenantId = process.env.OUTLOOK_QUERY_TENANT_ID;
-  const tokenProvider = createTokenProvider(
+  return createTokenProvider(
     tenantId !== undefined ? { clientId, tenantId } : { clientId },
   );
-  return new HttpGraphClient({ getToken: () => tokenProvider.getToken() });
+}
+
+function buildClient(): GraphClient {
+  const provider = buildTokenProvider();
+  return new HttpGraphClient({ getToken: () => provider.getToken() });
 }
 
 function optsToSearchParams(opts: SearchOpts): SearchParamsInput {
@@ -131,10 +135,9 @@ program
   .command("auth")
   .description("Trigger device-code auth (populates token cache)")
   .action(async () => {
-    const client = buildClient();
-    // Any call exercises the token provider; /me is small and stable.
-    const me = (await client.get("/me")) as { userPrincipalName?: string };
-    process.stderr.write(`✓ authenticated as ${me.userPrincipalName ?? "unknown"}\n`);
+    const provider = buildTokenProvider();
+    await provider.getToken();
+    process.stderr.write("✓ token acquired and cached\n");
   });
 
 program.parseAsync(process.argv).catch((e: unknown) => {
