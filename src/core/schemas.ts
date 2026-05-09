@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { parseDateInput } from "./date-input.js";
+import { parseDateInput } from "./date-input.ts";
 
 const dateInput = z.string().transform((v, ctx) => {
   try {
