@@ -76,7 +76,7 @@ After `pnpm build`, register in your `.mcp.json` or `~/.claude/mcp_servers.json`
 }
 ```
 
-Tools exposed: `search_emails`, `get_email`, `list_folders`. Same schema as the CLI.
+Tools exposed: `search_emails`, `get_email`, `get_conversation`, `list_folders`. Same schema as the CLI.
 
 ## Development
 
