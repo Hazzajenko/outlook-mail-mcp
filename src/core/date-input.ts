@@ -1,4 +1,5 @@
 const RELATIVE_RE = /^-(\d+)([dwhm])$/;
+const ISO_DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}(T.*)?$/;
 
 const MS_PER_UNIT: Record<"d" | "w" | "h" | "m", number> = {
@@ -8,7 +9,13 @@ const MS_PER_UNIT: Record<"d" | "w" | "h" | "m", number> = {
   m: 60_000,
 };
 
-export function parseDateInput(input: string, now: Date = new Date()): Date {
+export interface ParsedDateInput {
+  date: Date;
+  /** true when the input was a bare YYYY-MM-DD with no time component */
+  dateOnly: boolean;
+}
+
+export function parseDateInput(input: string, now: Date = new Date()): ParsedDateInput {
   if (input.length === 0) {
     throw new Error("Empty date input");
   }
@@ -17,7 +24,7 @@ export function parseDateInput(input: string, now: Date = new Date()): Date {
   if (rel) {
     const n = Number(rel[1]);
     const unit = rel[2] as "d" | "w" | "h" | "m";
-    return new Date(now.getTime() - n * MS_PER_UNIT[unit]);
+    return { date: new Date(now.getTime() - n * MS_PER_UNIT[unit]), dateOnly: false };
   }
 
   if (!ISO_RE.test(input)) {
@@ -28,5 +35,5 @@ export function parseDateInput(input: string, now: Date = new Date()): Date {
   if (Number.isNaN(d.getTime())) {
     throw new Error(`Invalid date input: ${input}`);
   }
-  return d;
+  return { date: d, dateOnly: ISO_DATE_ONLY_RE.test(input) };
 }
