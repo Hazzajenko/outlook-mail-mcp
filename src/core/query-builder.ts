@@ -85,15 +85,26 @@ function buildKql(p: SearchParams): string {
     terms.push(`read:${p.is_unread ? "no" : "yes"}`);
   }
   if (p.importance) terms.push(`importance:${p.importance}`);
-  if (p.since) terms.push(`received>=${dateOnly(p.since)}`);
-  if (p.until) terms.push(`received<=${dateOnly(p.until)}`);
+  if (p.since) terms.push(`received>=${dateOnly(p.since.date)}`);
+  if (p.until) {
+    // KQL `received` is date-precision; use exclusive `<` against the day after
+    // p.until so the named day is fully included regardless of input precision.
+    terms.push(`received<${dateOnly(nextDayUtc(p.until.date))}`);
+  }
   return terms.join(" ");
 }
 
 function buildOdataFilter(p: SearchParams): string {
   const parts: string[] = [];
-  if (p.since) parts.push(`receivedDateTime ge ${p.since.toISOString()}`);
-  if (p.until) parts.push(`receivedDateTime le ${p.until.toISOString()}`);
+  if (p.since) parts.push(`receivedDateTime ge ${p.since.date.toISOString()}`);
+  if (p.until) {
+    if (p.until.dateOnly) {
+      // include the whole day: < start of next day
+      parts.push(`receivedDateTime lt ${nextDayUtc(p.until.date).toISOString()}`);
+    } else {
+      parts.push(`receivedDateTime le ${p.until.date.toISOString()}`);
+    }
+  }
   if (p.is_unread !== undefined) parts.push(`isRead eq ${!p.is_unread}`);
   if (p.has_attachment !== undefined) parts.push(`hasAttachments eq ${p.has_attachment}`);
   if (p.importance) parts.push(`importance eq '${p.importance}'`);
@@ -105,4 +116,8 @@ function buildOdataFilter(p: SearchParams): string {
 
 function dateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+function nextDayUtc(d: Date): Date {
+  return new Date(d.getTime() + 86_400_000);
 }
