@@ -23,15 +23,17 @@ describe("SearchParamsSchema", () => {
     expect(() => SearchParamsSchema.parse({ top: 1.5 })).toThrow();
   });
 
-  it("transforms since string into Date", () => {
+  it("transforms since string into ParsedDateInput (date-only)", () => {
     const parsed = SearchParamsSchema.parse({ since: "2026-05-01" });
-    expect(parsed.since).toBeInstanceOf(Date);
-    expect(parsed.since?.toISOString()).toBe("2026-05-01T00:00:00.000Z");
+    expect(parsed.since?.date).toBeInstanceOf(Date);
+    expect(parsed.since?.date.toISOString()).toBe("2026-05-01T00:00:00.000Z");
+    expect(parsed.since?.dateOnly).toBe(true);
   });
 
-  it("transforms relative since (-7d) into Date", () => {
+  it("transforms relative since (-7d) into ParsedDateInput (dateOnly=false)", () => {
     const parsed = SearchParamsSchema.parse({ since: "-7d" });
-    expect(parsed.since).toBeInstanceOf(Date);
+    expect(parsed.since?.date).toBeInstanceOf(Date);
+    expect(parsed.since?.dateOnly).toBe(false);
   });
 
   it("rejects invalid since string", () => {
@@ -81,8 +83,8 @@ describe("SearchParamsSchema", () => {
       top: 100,
     });
     expect(parsed.top).toBe(100);
-    expect(parsed.since).toBeInstanceOf(Date);
-    expect(parsed.until).toBeInstanceOf(Date);
+    expect(parsed.since?.date).toBeInstanceOf(Date);
+    expect(parsed.until?.date).toBeInstanceOf(Date);
   });
 });
 

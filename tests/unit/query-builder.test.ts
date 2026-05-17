@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
+import type { ParsedDateInput } from "../../src/core/date-input.ts";
 import { buildGraphQuery } from "../../src/core/query-builder.ts";
 import type { SearchParams } from "../../src/core/schemas.ts";
 
 const params = (over: Partial<SearchParams> = {}): SearchParams => ({
   top: 50,
   ...over,
+});
+
+const dt = (iso: string): ParsedDateInput => ({ date: new Date(iso), dateOnly: false });
+const dateOnly = (yyyymmdd: string): ParsedDateInput => ({
+  date: new Date(`${yyyymmdd}T00:00:00Z`),
+  dateOnly: true,
 });
 
 describe("buildGraphQuery", () => {
@@ -39,24 +46,29 @@ describe("buildGraphQuery", () => {
 
   describe("$filter path (no free text)", () => {
     it("since -> receivedDateTime ge ISO", () => {
-      const { query } = buildGraphQuery(params({ since: new Date("2026-05-01T00:00:00Z") }));
+      const { query } = buildGraphQuery(params({ since: dt("2026-05-01T00:00:00Z") }));
       expect(query.get("$filter")).toBe("receivedDateTime ge 2026-05-01T00:00:00.000Z");
     });
 
-    it("until -> receivedDateTime le ISO", () => {
-      const { query } = buildGraphQuery(params({ until: new Date("2026-05-09T00:00:00Z") }));
-      expect(query.get("$filter")).toBe("receivedDateTime le 2026-05-09T00:00:00.000Z");
+    it("until with explicit datetime -> receivedDateTime le ISO (inclusive instant)", () => {
+      const { query } = buildGraphQuery(params({ until: dt("2026-05-09T15:30:00Z") }));
+      expect(query.get("$filter")).toBe("receivedDateTime le 2026-05-09T15:30:00.000Z");
+    });
+
+    it("until with date-only -> receivedDateTime lt start of next day (whole day included)", () => {
+      const { query } = buildGraphQuery(params({ until: dateOnly("2026-05-08") }));
+      expect(query.get("$filter")).toBe("receivedDateTime lt 2026-05-09T00:00:00.000Z");
     });
 
     it("since AND until", () => {
       const { query } = buildGraphQuery(
         params({
-          since: new Date("2026-05-01T00:00:00Z"),
-          until: new Date("2026-05-09T00:00:00Z"),
+          since: dt("2026-05-01T00:00:00Z"),
+          until: dateOnly("2026-05-08"),
         }),
       );
       expect(query.get("$filter")).toBe(
-        "receivedDateTime ge 2026-05-01T00:00:00.000Z and receivedDateTime le 2026-05-09T00:00:00.000Z",
+        "receivedDateTime ge 2026-05-01T00:00:00.000Z and receivedDateTime lt 2026-05-09T00:00:00.000Z",
       );
     });
 
@@ -102,7 +114,7 @@ describe("buildGraphQuery", () => {
           has_attachment: true,
           importance: "high",
           is_unread: true,
-          since: new Date("2026-05-01T00:00:00Z"),
+          since: dt("2026-05-01T00:00:00Z"),
         }),
       );
       expect(query.get("$filter")).toBe(
@@ -166,17 +178,17 @@ describe("buildGraphQuery", () => {
       expect(s).toContain("importance:high");
     });
 
-    it("date range folds into KQL as received>= / received<=", () => {
+    it("until in KQL is exclusive against next day (whole day included)", () => {
       const { query } = buildGraphQuery(
         params({
           query: "interview",
-          since: new Date("2026-05-01T00:00:00Z"),
-          until: new Date("2026-05-09T00:00:00Z"),
+          since: dateOnly("2026-05-01"),
+          until: dateOnly("2026-05-08"),
         }),
       );
       const s = query.get("$search") ?? "";
       expect(s).toContain("received>=2026-05-01");
-      expect(s).toContain("received<=2026-05-09");
+      expect(s).toContain("received<2026-05-09");
     });
 
     it("$filter omitted in search path", () => {
