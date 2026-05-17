@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { GraphClient } from "./graph-client.ts";
 import { buildGraphQuery, CONVERSATION_SELECT, FULL_SELECT } from "./query-builder.ts";
-import { mapFolder, mapFullMessage, mapLeanMessage } from "./result-mapper.ts";
-import type { Folder, FullMessage, SearchParams, SearchResult } from "./schemas.ts";
+import { mapFolder, mapFullMessage, mapLeanWithFolderId } from "./result-mapper.ts";
+import type { Folder, FullMessage, LeanMessage, SearchParams, SearchResult } from "./schemas.ts";
 
 const PageSchema = z.object({
   value: z.array(z.unknown()),
@@ -42,7 +42,8 @@ export async function search(client: GraphClient, params: SearchParams): Promise
     pageQuery = built.query;
   }
 
-  const out = [];
+  const out: LeanMessage[] = [];
+  const folderIds: (string | undefined)[] = [];
   let nextCursor: string | undefined;
   let hasMore = false;
 
@@ -54,13 +55,19 @@ export async function search(client: GraphClient, params: SearchParams): Promise
     if (value.length > remaining) {
       // truncating mid-page: nextLink would skip unconsumed items, so don't expose a cursor
       for (let i = 0; i < remaining; i++) {
-        out.push(mapLeanMessage(value[i]));
+        const { lean, folder_id } = mapLeanWithFolderId(value[i]);
+        out.push(lean);
+        folderIds.push(folder_id);
       }
       hasMore = true;
       break;
     }
 
-    for (const v of value) out.push(mapLeanMessage(v));
+    for (const v of value) {
+      const { lean, folder_id } = mapLeanWithFolderId(v);
+      out.push(lean);
+      folderIds.push(folder_id);
+    }
 
     if (out.length >= params.top) {
       nextCursor = nextLink;
@@ -73,12 +80,31 @@ export async function search(client: GraphClient, params: SearchParams): Promise
     pageQuery = undefined;
   }
 
+  await resolveFolderNames(client, out, folderIds);
+
   return {
     results: out,
     total_returned: out.length,
     has_more: hasMore,
     ...(nextCursor !== undefined ? { next_cursor: nextCursor } : {}),
   };
+}
+
+async function resolveFolderNames(
+  client: GraphClient,
+  messages: LeanMessage[],
+  folderIds: (string | undefined)[],
+): Promise<void> {
+  if (folderIds.every((id) => id === undefined)) return;
+  const folders = await listFolders(client);
+  const byId = new Map(folders.map((f) => [f.id, f.display_name]));
+  for (let i = 0; i < messages.length; i++) {
+    const id = folderIds[i];
+    const m = messages[i];
+    if (id === undefined || m === undefined) continue;
+    const name = byId.get(id);
+    if (name !== undefined) m.folder = name;
+  }
 }
 
 export interface GetEmailOptions {

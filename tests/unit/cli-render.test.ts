@@ -10,7 +10,6 @@ const lean = (over: Partial<LeanMessage> = {}): LeanMessage => ({
   has_attachment: false,
   is_read: false,
   conversation_id: "conv-1",
-  web_link: "https://outlook.office.com/x",
   body_preview: "Dear candidate...",
   ...over,
 });
@@ -81,6 +80,7 @@ describe("renderFullMessage", () => {
     body_content_type: "text",
     importance: "high",
     internet_message_headers: [],
+    web_link: "https://outlook.office.com/x",
   };
 
   it("includes from, to, subject, date, body", () => {

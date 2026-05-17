@@ -4,12 +4,13 @@ import {
   mapFolder,
   mapFullMessage,
   mapLeanMessage,
+  mapLeanWithFolderId,
 } from "../../src/core/result-mapper.ts";
 import folderFixture from "../fixtures/graph-folder.json" with { type: "json" };
 import messageFixture from "../fixtures/graph-message.json" with { type: "json" };
 
 describe("mapLeanMessage", () => {
-  it("maps a Graph message to LeanMessage shape", () => {
+  it("maps a Graph message to LeanMessage shape (no web_link, no folder yet)", () => {
     const m = mapLeanMessage(messageFixture);
     expect(m).toEqual({
       id: "AAMkADYzAA",
@@ -19,9 +20,19 @@ describe("mapLeanMessage", () => {
       has_attachment: false,
       is_read: false,
       conversation_id: "AAQkADYz",
-      web_link: "https://outlook.office.com/mail/inbox/id/AAMkADYzAA",
       body_preview: "Dear candidate, please complete the assessment by Friday.",
     });
+  });
+
+  it("does NOT include web_link on lean", () => {
+    const m = mapLeanMessage(messageFixture);
+    expect(m).not.toHaveProperty("web_link");
+  });
+
+  it("does NOT include parent_folder_id (replaced by folder, resolved later)", () => {
+    const m = mapLeanMessage({ ...messageFixture, parentFolderId: "fold-junk" });
+    expect(m).not.toHaveProperty("parent_folder_id");
+    expect(m).not.toHaveProperty("folder");
   });
 
   it("falls back to empty address when from missing", () => {
@@ -55,15 +66,9 @@ describe("mapLeanMessage", () => {
     expect(m.inference_classification).toBe("other");
   });
 
-  it("passes through parent_folder_id when present", () => {
-    const m = mapLeanMessage({ ...messageFixture, parentFolderId: "fold-junk" });
-    expect(m.parent_folder_id).toBe("fold-junk");
-  });
-
-  it("omits inference_classification + parent_folder_id when missing", () => {
+  it("omits inference_classification when missing", () => {
     const m = mapLeanMessage(messageFixture);
     expect(m).not.toHaveProperty("inference_classification");
-    expect(m).not.toHaveProperty("parent_folder_id");
   });
 });
 
@@ -97,10 +102,28 @@ describe("cleanPreview", () => {
   });
 });
 
+describe("mapLeanWithFolderId", () => {
+  it("returns lean + raw folder_id when parentFolderId present", () => {
+    const { lean, folder_id } = mapLeanWithFolderId({
+      ...messageFixture,
+      parentFolderId: "fold-xyz",
+    });
+    expect(folder_id).toBe("fold-xyz");
+    expect(lean.id).toBe("AAMkADYzAA");
+    expect(lean).not.toHaveProperty("folder");
+  });
+
+  it("returns folder_id undefined when absent", () => {
+    const { folder_id } = mapLeanWithFolderId(messageFixture);
+    expect(folder_id).toBeUndefined();
+  });
+});
+
 describe("mapFullMessage", () => {
-  it("maps a Graph message to FullMessage shape", () => {
+  it("maps a Graph message to FullMessage shape (includes web_link)", () => {
     const m = mapFullMessage(messageFixture);
     expect(m.id).toBe("AAMkADYzAA");
+    expect(m.web_link).toBe("https://outlook.office.com/mail/inbox/id/AAMkADYzAA");
     expect(m.body).toBe("<html><body>Dear candidate...</body></html>");
     expect(m.body_content_type).toBe("html");
     expect(m.importance).toBe("high");
