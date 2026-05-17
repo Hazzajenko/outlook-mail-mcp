@@ -19,7 +19,7 @@ export function renderSearchResults(result: SearchResult): string {
     if (m.body_preview) lines.push(`    ${truncate(m.body_preview, 120)}`);
     lines.push("");
   });
-  const footer = result.next_cursor
+  const footer = result.has_more
     ? `${result.total_returned} results · more available`
     : `${result.total_returned} results`;
   lines.push(footer);
