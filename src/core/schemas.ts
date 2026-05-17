@@ -17,20 +17,41 @@ export const InferenceClassificationSchema = z.enum(["focused", "other"]);
 export type InferenceClassification = z.infer<typeof InferenceClassificationSchema>;
 
 export const SearchParamsSchema = z.strictObject({
-  query: z.string().optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
-  subject_contains: z.string().optional(),
-  body_contains: z.string().optional(),
-  since: dateInput.optional(),
-  until: dateInput.optional(),
+  query: z.string().optional().describe("KQL free-text search across subject/body/people"),
+  from: z.string().optional().describe("sender address or domain (text search)"),
+  to: z.string().optional().describe("recipient address or domain (text search)"),
+  subject_contains: z.string().optional().describe("substring in subject (text search)"),
+  body_contains: z.string().optional().describe("substring in body (text search)"),
+  since: dateInput
+    .optional()
+    .describe(
+      "lower bound, inclusive. ISO date (2026-05-08) or relative (-7d, -2w, -3h, -30m). Date-only ⇒ start of that day UTC.",
+    ),
+  until: dateInput
+    .optional()
+    .describe(
+      "upper bound. Date-only (2026-05-08) ⇒ inclusive of the entire day. With explicit time ⇒ inclusive of that instant.",
+    ),
   has_attachment: z.boolean().optional(),
-  folder: z.string().optional(),
+  folder: z
+    .string()
+    .optional()
+    .describe(
+      "well-known (inbox/sentitems/junkemail/deleteditems/drafts/archive) or custom display name. When omitted, Graph $search excludes Junk/Deleted/Drafts — pass folder explicitly to search them.",
+    ),
   is_unread: z.boolean().optional(),
   importance: ImportanceSchema.optional(),
-  inference_classification: InferenceClassificationSchema.optional(),
-  top: z.number().int().min(1).max(500).default(50),
-  cursor: z.string().optional(),
+  inference_classification: InferenceClassificationSchema.optional().describe(
+    "focused | other. Cannot combine with text search (query/from/to/subject_contains/body_contains).",
+  ),
+  top: z
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .default(50)
+    .describe("max results per call (1-500, default 50). Check has_more / next_cursor for more."),
+  cursor: z.string().optional().describe("pagination cursor from a previous result's next_cursor"),
 });
 
 export type SearchParamsInput = z.input<typeof SearchParamsSchema>;
