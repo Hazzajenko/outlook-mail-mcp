@@ -38,8 +38,21 @@ server.registerTool(
   "search_emails",
   {
     title: "Search Outlook emails",
-    description:
-      "Search the user's Outlook mailbox via Microsoft Graph. Returns lean message metadata + body preview. Combine free-text query with structured filters (from, subject, since, etc.). Use get_email for full body.",
+    description: [
+      "Search the user's Outlook mailbox via Microsoft Graph. Returns lean message metadata + body preview; use get_email for full body.",
+      "",
+      'FOLDER SCOPE: Without `folder`, Graph $search excludes Junk Email, Deleted Items, and Drafts by default. To search those, pass `folder: "junkemail"` (or `deleteditems`/`drafts`). Use list_folders to discover custom folder names.',
+      "",
+      "TWO QUERY PATHS (auto-selected):",
+      "  • Text path — triggered by query/from/to/subject_contains/body_contains. Uses KQL $search; date precision is per-day; results NOT sorted by date.",
+      "  • Structured path — no text params. Uses OData $filter; sorted by receivedDateTime desc; supports inference_classification.",
+      "",
+      "MUTUAL EXCLUSION: `inference_classification` cannot combine with any text param (KQL has no inference keyword).",
+      "",
+      "DATE BOUNDS: `since` is inclusive. `until` with a bare date (2026-05-08) includes the entire day; with an explicit time it's inclusive of that instant.",
+      "",
+      "PAGINATION: Default top=50, max 500. If `has_more: true`, fetch more by passing the response's `next_cursor` back as `cursor` (other params are ignored when cursor is set). Mid-page truncation can set has_more=true without a cursor — re-issue with a higher `top` to recover.",
+    ].join("\n"),
     inputSchema: SearchParamsSchema.shape,
   },
   async (args) => {
