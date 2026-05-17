@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { mapFolder, mapFullMessage, mapLeanMessage } from "../../src/core/result-mapper.ts";
+import {
+  cleanPreview,
+  mapFolder,
+  mapFullMessage,
+  mapLeanMessage,
+} from "../../src/core/result-mapper.ts";
 import folderFixture from "../fixtures/graph-folder.json" with { type: "json" };
 import messageFixture from "../fixtures/graph-message.json" with { type: "json" };
 
@@ -34,6 +39,17 @@ describe("mapLeanMessage", () => {
     expect(m.body_preview).toBe("");
   });
 
+  it("cleans zero-width / bidi noise from body_preview", () => {
+    const noisy = "Hello​‌‍world͏͏!";
+    const m = mapLeanMessage({ ...messageFixture, bodyPreview: noisy });
+    expect(m.body_preview).toBe("Helloworld!");
+  });
+
+  it("collapses internal whitespace runs in body_preview", () => {
+    const m = mapLeanMessage({ ...messageFixture, bodyPreview: "  a   b\n\nc\t\td  " });
+    expect(m.body_preview).toBe("a b c d");
+  });
+
   it("passes through inference_classification when present", () => {
     const m = mapLeanMessage({ ...messageFixture, inferenceClassification: "other" });
     expect(m.inference_classification).toBe("other");
@@ -48,6 +64,36 @@ describe("mapLeanMessage", () => {
     const m = mapLeanMessage(messageFixture);
     expect(m).not.toHaveProperty("inference_classification");
     expect(m).not.toHaveProperty("parent_folder_id");
+  });
+});
+
+describe("cleanPreview", () => {
+  it("returns empty string unchanged", () => {
+    expect(cleanPreview("")).toBe("");
+  });
+
+  it("strips combining grapheme joiner (U+034F)", () => {
+    expect(cleanPreview("a͏b")).toBe("ab");
+  });
+
+  it("strips zero-width chars (U+200B-U+200F)", () => {
+    expect(cleanPreview("a​b‌c‍d‎e‏f")).toBe("abcdef");
+  });
+
+  it("strips word joiner and invisible operators (U+2060-U+206F)", () => {
+    expect(cleanPreview("a⁠b⁯c")).toBe("abc");
+  });
+
+  it("strips BOM (U+FEFF)", () => {
+    expect(cleanPreview("﻿hello")).toBe("hello");
+  });
+
+  it("collapses whitespace and trims", () => {
+    expect(cleanPreview("  hello   world  ")).toBe("hello world");
+  });
+
+  it("preserves regular content", () => {
+    expect(cleanPreview("Hello, World!")).toBe("Hello, World!");
   });
 });
 
