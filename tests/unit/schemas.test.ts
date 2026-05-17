@@ -89,7 +89,7 @@ describe("SearchParamsSchema", () => {
 });
 
 describe("LeanMessageSchema", () => {
-  it("accepts a valid lean message", () => {
+  it("accepts a valid lean message (no web_link required)", () => {
     const m = LeanMessageSchema.parse({
       id: "abc",
       from: { name: "Goldman Recruiter", address: "r@goldman.com" },
@@ -98,10 +98,24 @@ describe("LeanMessageSchema", () => {
       has_attachment: false,
       is_read: false,
       conversation_id: "conv-1",
-      web_link: "https://outlook.office.com/mail/inbox/id/abc",
       body_preview: "We are pleased to invite you...",
     });
     expect(m.id).toBe("abc");
+  });
+
+  it("accepts optional folder display name", () => {
+    const m = LeanMessageSchema.parse({
+      id: "abc",
+      from: { address: "r@x.com" },
+      subject: "x",
+      received_at: "2026-05-08T14:00:00Z",
+      has_attachment: false,
+      is_read: false,
+      conversation_id: "c",
+      body_preview: "",
+      folder: "Junk Email",
+    });
+    expect(m.folder).toBe("Junk Email");
   });
 
   it("from.name optional, from.address required", () => {
@@ -114,7 +128,6 @@ describe("LeanMessageSchema", () => {
         has_attachment: false,
         is_read: false,
         conversation_id: "c",
-        web_link: "https://x.com",
         body_preview: "",
       }),
     ).toThrow();

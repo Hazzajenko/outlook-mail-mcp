@@ -8,7 +8,6 @@ export const LEAN_SELECT = [
   "hasAttachments",
   "isRead",
   "conversationId",
-  "webLink",
   "bodyPreview",
   "inferenceClassification",
   "parentFolderId",
@@ -21,6 +20,7 @@ export const FULL_SELECT = [
   "body",
   "importance",
   "internetMessageHeaders",
+  "webLink",
 ].join(",");
 
 export const CONVERSATION_SELECT = [
@@ -29,6 +29,7 @@ export const CONVERSATION_SELECT = [
   "ccRecipients",
   "body",
   "importance",
+  "webLink",
 ].join(",");
 
 export interface GraphQuery {

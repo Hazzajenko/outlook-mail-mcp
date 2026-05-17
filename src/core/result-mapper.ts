@@ -75,15 +75,25 @@ function leanFromParsed(m: GraphMessage): LeanMessage {
     has_attachment: m.hasAttachments,
     is_read: m.isRead,
     conversation_id: m.conversationId,
-    web_link: m.webLink,
     body_preview: cleanPreview(m.bodyPreview ?? ""),
     ...(m.inferenceClassification ? { inference_classification: m.inferenceClassification } : {}),
-    ...(m.parentFolderId ? { parent_folder_id: m.parentFolderId } : {}),
   };
 }
 
 export function mapLeanMessage(raw: unknown): LeanMessage {
   return leanFromParsed(GraphMessageSchema.parse(raw));
+}
+
+/**
+ * search() needs the raw parentFolderId to resolve display names after the
+ * fetch loop completes. This variant returns the lean message plus that id.
+ */
+export function mapLeanWithFolderId(raw: unknown): {
+  lean: LeanMessage;
+  folder_id: string | undefined;
+} {
+  const m = GraphMessageSchema.parse(raw);
+  return { lean: leanFromParsed(m), folder_id: m.parentFolderId };
 }
 
 export function mapFullMessage(raw: unknown): FullMessage {
@@ -97,6 +107,7 @@ export function mapFullMessage(raw: unknown): FullMessage {
     body_content_type: contentTypeRaw === "html" ? "html" : "text",
     importance: m.importance ?? "normal",
     internet_message_headers: m.internetMessageHeaders ?? [],
+    web_link: m.webLink,
   };
 }
 

@@ -110,6 +110,45 @@ describe("search", () => {
       /folder not found/i,
     );
   });
+
+  describe("folder name resolution", () => {
+    it("populates folder display name from parentFolderId via listFolders", async () => {
+      const fake = new FakeGraphClient()
+        .enqueue({ value: [{ ...msg("a"), parentFolderId: "fold-inbox" }] })
+        .enqueue({ value: [{ ...folderFixture, id: "fold-inbox", displayName: "Inbox" }] });
+      const result = await search(fake, params());
+
+      expect(fake.calls).toHaveLength(2);
+      expect(fake.calls[1]?.pathOrUrl).toBe("/me/mailFolders");
+      expect(result.results[0]?.folder).toBe("Inbox");
+    });
+
+    it("skips listFolders when no result has parentFolderId", async () => {
+      const fake = new FakeGraphClient().enqueue({ value: [msg("a"), msg("b")] });
+      const result = await search(fake, params());
+
+      expect(fake.calls).toHaveLength(1);
+      expect(result.results[0]).not.toHaveProperty("folder");
+    });
+
+    it("leaves folder undefined when listFolders doesn't return the id", async () => {
+      const fake = new FakeGraphClient()
+        .enqueue({ value: [{ ...msg("a"), parentFolderId: "fold-unknown" }] })
+        .enqueue({ value: [{ ...folderFixture, id: "fold-other", displayName: "Other" }] });
+      const result = await search(fake, params());
+
+      expect(result.results[0]).not.toHaveProperty("folder");
+    });
+
+    it("strips noisy zero-width chars from body_preview", async () => {
+      const fake = new FakeGraphClient().enqueue({
+        value: [{ ...msg("a"), bodyPreview: "Hello​‌‍world͏!" }],
+      });
+      const result = await search(fake, params());
+
+      expect(result.results[0]?.body_preview).toBe("Helloworld!");
+    });
+  });
 });
 
 describe("getEmail", () => {
