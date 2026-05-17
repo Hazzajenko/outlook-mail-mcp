@@ -44,6 +44,7 @@ export async function search(client: GraphClient, params: SearchParams): Promise
 
   const out = [];
   let nextCursor: string | undefined;
+  let hasMore = false;
 
   while (true) {
     const raw = await client.get(pagePath, pageQuery);
@@ -55,6 +56,7 @@ export async function search(client: GraphClient, params: SearchParams): Promise
       for (let i = 0; i < remaining; i++) {
         out.push(mapLeanMessage(value[i]));
       }
+      hasMore = true;
       break;
     }
 
@@ -62,6 +64,7 @@ export async function search(client: GraphClient, params: SearchParams): Promise
 
     if (out.length >= params.top) {
       nextCursor = nextLink;
+      hasMore = nextLink !== undefined;
       break;
     }
     if (nextLink === undefined) break;
@@ -73,6 +76,7 @@ export async function search(client: GraphClient, params: SearchParams): Promise
   return {
     results: out,
     total_returned: out.length,
+    has_more: hasMore,
     ...(nextCursor !== undefined ? { next_cursor: nextCursor } : {}),
   };
 }
