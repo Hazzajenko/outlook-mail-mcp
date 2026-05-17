@@ -18,6 +18,7 @@ describe("search", () => {
     expect(fake.calls[0]?.query?.get("$top")).toBe("25");
     expect(result.results.map((r) => r.id)).toEqual(["a", "b"]);
     expect(result.total_returned).toBe(2);
+    expect(result.has_more).toBe(false);
     expect(result.next_cursor).toBeUndefined();
   });
 
@@ -33,10 +34,11 @@ describe("search", () => {
     expect(fake.calls).toHaveLength(2);
     expect(fake.calls[1]?.pathOrUrl).toBe("https://graph.microsoft.com/v1.0/me/messages?$skip=2");
     expect(result.results.map((r) => r.id)).toEqual(["a", "b", "c"]);
+    expect(result.has_more).toBe(false);
     expect(result.next_cursor).toBeUndefined();
   });
 
-  it("returns next_cursor=nextLink when stopped at clean page boundary", async () => {
+  it("returns next_cursor=nextLink and has_more=true when stopped at clean page boundary", async () => {
     const nextLink = "https://graph.microsoft.com/v1.0/me/messages?$skip=2&$top=2";
     const fake = new FakeGraphClient().enqueue({
       value: [msg("a"), msg("b")],
@@ -45,10 +47,11 @@ describe("search", () => {
     const result = await search(fake, params({ top: 2 }));
 
     expect(result.results).toHaveLength(2);
+    expect(result.has_more).toBe(true);
     expect(result.next_cursor).toBe(nextLink);
   });
 
-  it("next_cursor undefined when truncating mid-page (lossy)", async () => {
+  it("has_more=true but next_cursor undefined when truncating mid-page (lossy)", async () => {
     const fake = new FakeGraphClient().enqueue({
       value: [msg("a"), msg("b"), msg("c"), msg("d")],
       "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skip=4",
@@ -56,6 +59,7 @@ describe("search", () => {
     const result = await search(fake, params({ top: 2 }));
 
     expect(result.results.map((r) => r.id)).toEqual(["a", "b"]);
+    expect(result.has_more).toBe(true);
     expect(result.next_cursor).toBeUndefined();
   });
 

@@ -85,6 +85,7 @@ export type Folder = z.infer<typeof FolderSchema>;
 export const SearchResultSchema = z.object({
   results: z.array(LeanMessageSchema),
   total_returned: z.number().int(),
+  has_more: z.boolean(),
   next_cursor: z.string().optional(),
 });
 export type SearchResult = z.infer<typeof SearchResultSchema>;
