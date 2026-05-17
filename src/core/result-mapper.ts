@@ -51,6 +51,16 @@ const GraphFolderSchema = z.object({
 type GraphMessage = z.infer<typeof GraphMessageSchema>;
 type GraphRecipient = z.infer<typeof GraphRecipientSchema>;
 
+// Invisible / formatting characters that marketing emails inject for tracking.
+// U+034F combining grapheme joiner; U+200B-200F zero-width + bidi marks;
+// U+202A-202E bidi overrides; U+2060-206F word joiner / invisible operators;
+// U+FEFF BOM. Regular whitespace is preserved here and collapsed below.
+const NOISE_CHAR_RE = /[͏​-‏‪-‮⁠-⁯﻿]/g;
+
+export function cleanPreview(s: string): string {
+  return s.replace(NOISE_CHAR_RE, "").replace(/\s+/g, " ").trim();
+}
+
 function flattenAddress(r: GraphRecipient): EmailAddress {
   const { name, address } = r.emailAddress;
   return name === undefined ? { address } : { name, address };
@@ -66,7 +76,7 @@ function leanFromParsed(m: GraphMessage): LeanMessage {
     is_read: m.isRead,
     conversation_id: m.conversationId,
     web_link: m.webLink,
-    body_preview: m.bodyPreview ?? "",
+    body_preview: cleanPreview(m.bodyPreview ?? ""),
     ...(m.inferenceClassification ? { inference_classification: m.inferenceClassification } : {}),
     ...(m.parentFolderId ? { parent_folder_id: m.parentFolderId } : {}),
   };
