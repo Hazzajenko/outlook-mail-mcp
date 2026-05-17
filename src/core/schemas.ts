@@ -77,10 +77,9 @@ export const LeanMessageSchema = z.object({
   has_attachment: z.boolean(),
   is_read: z.boolean(),
   conversation_id: z.string(),
-  web_link: z.string(),
   body_preview: z.string(),
   inference_classification: InferenceClassificationSchema.optional(),
-  parent_folder_id: z.string().optional(),
+  folder: z.string().optional(),
 });
 export type LeanMessage = z.infer<typeof LeanMessageSchema>;
 
@@ -91,6 +90,7 @@ export const FullMessageSchema = LeanMessageSchema.extend({
   body_content_type: z.enum(["text", "html"]),
   importance: ImportanceSchema,
   internet_message_headers: z.array(InternetMessageHeaderSchema),
+  web_link: z.string(),
 });
 export type FullMessage = z.infer<typeof FullMessageSchema>;
 
