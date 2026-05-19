@@ -67,10 +67,29 @@ export type SearchParams = z.output<typeof SearchParamsSchema>;
 export const CountParamsSchema = z.strictObject(filterShape);
 export type CountParams = z.output<typeof CountParamsSchema>;
 
+export const ListBriefParamsSchema = z.strictObject({
+  ...filterShape,
+  top: z
+    .number()
+    .int()
+    .min(1)
+    .max(2000)
+    .default(500)
+    .describe("max emails to return (1-2000, default 500). Auto-paginates Graph under the hood."),
+});
+export type ListBriefParams = z.output<typeof ListBriefParamsSchema>;
+
 export const CountResultSchema = z.object({
   count: z.number().int(),
 });
 export type CountResult = z.infer<typeof CountResultSchema>;
+
+export const BriefListResultSchema = z.object({
+  lines: z.string(),
+  total_returned: z.number().int(),
+  has_more: z.boolean(),
+});
+export type BriefListResult = z.infer<typeof BriefListResultSchema>;
 
 const EmailAddressSchema = z.object({
   name: z.string().optional(),

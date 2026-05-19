@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { GraphClient } from "./graph-client.ts";
 import {
+  buildBriefQuery,
   buildCountQuery,
   buildGraphQuery,
   CONVERSATION_SELECT,
@@ -8,11 +9,13 @@ import {
 } from "./query-builder.ts";
 import { mapFolder, mapFullMessage, mapLeanWithFolderId } from "./result-mapper.ts";
 import type {
+  BriefListResult,
   CountParams,
   CountResult,
   Folder,
   FullMessage,
   LeanMessage,
+  ListBriefParams,
   SearchParams,
   SearchResult,
 } from "./schemas.ts";
@@ -189,6 +192,76 @@ export async function countEmails(client: GraphClient, params: CountParams): Pro
   const raw = await client.get(endpoint, query, { ConsistencyLevel: "eventual" });
   const { "@odata.count": count } = CountResponseSchema.parse(raw);
   return { count };
+}
+
+const BriefMessageSchema = z.object({
+  subject: z.string().nullable().optional(),
+  receivedDateTime: z.string(),
+  from: z
+    .object({ emailAddress: z.object({ address: z.string() }) })
+    .nullable()
+    .optional(),
+});
+
+export async function listEmailsBrief(
+  client: GraphClient,
+  params: ListBriefParams,
+): Promise<BriefListResult> {
+  const folderId = params.folder ? await resolveFolderId(client, params.folder) : undefined;
+  const built = buildBriefQuery(params, folderId);
+  let pagePath: string = built.endpoint;
+  let pageQuery: URLSearchParams | undefined = built.query;
+
+  const lines: string[] = [];
+  let hasMore = false;
+
+  while (true) {
+    const raw = await client.get(pagePath, pageQuery);
+    const { value, "@odata.nextLink": nextLink } = PageSchema.parse(raw);
+    const remaining = params.top - lines.length;
+
+    if (value.length > remaining) {
+      for (let i = 0; i < remaining; i++) lines.push(formatBriefLine(value[i]));
+      hasMore = true;
+      break;
+    }
+
+    for (const v of value) lines.push(formatBriefLine(v));
+
+    if (lines.length >= params.top) {
+      hasMore = nextLink !== undefined;
+      break;
+    }
+    if (nextLink === undefined) break;
+
+    pagePath = nextLink;
+    pageQuery = undefined;
+  }
+
+  return { lines: lines.join("\n"), total_returned: lines.length, has_more: hasMore };
+}
+
+function formatBriefLine(raw: unknown): string {
+  const m = BriefMessageSchema.parse(raw);
+  const date = formatBriefDate(m.receivedDateTime);
+  const from = m.from?.emailAddress.address ?? "(unknown)";
+  const subject = truncate((m.subject ?? "").replace(/\s+/g, " ").trim(), 80);
+  return `${date} | ${from} | ${subject}`;
+}
+
+function formatBriefDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const y = d.getUTCFullYear();
+  const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mi = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${y}-${mo}-${dd} ${hh}:${mi}`;
+}
+
+function truncate(s: string, n: number): string {
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 }
 
 export async function listFolders(client: GraphClient): Promise<Folder[]> {
