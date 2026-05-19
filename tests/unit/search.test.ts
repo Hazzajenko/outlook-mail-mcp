@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { SearchParams } from "../../src/core/schemas.ts";
-import { getConversation, getEmail, listFolders, search } from "../../src/core/search.ts";
+import type { CountParams, FilterParams, SearchParams } from "../../src/core/schemas.ts";
+import {
+  countEmails,
+  getConversation,
+  getEmail,
+  listFolders,
+  search,
+} from "../../src/core/search.ts";
 import folderFixture from "../fixtures/graph-folder.json" with { type: "json" };
 import messageFixture from "../fixtures/graph-message.json" with { type: "json" };
 import { FakeGraphClient } from "../helpers/fake-graph-client.ts";
 
 const params = (over: Partial<SearchParams> = {}): SearchParams => ({ top: 50, ...over });
+
+const countP = (over: Partial<CountParams> = {}): CountParams => ({ ...over }) as FilterParams;
 
 const msg = (id: string) => ({ ...messageFixture, id });
 
@@ -326,5 +334,39 @@ describe("getConversation", () => {
 
     expect(fake.calls).toHaveLength(1);
     expect(result).toHaveLength(2);
+  });
+});
+
+describe("countEmails", () => {
+  it("returns @odata.count from Graph", async () => {
+    const fake = new FakeGraphClient().enqueue({ "@odata.count": 1247, value: [] });
+    const result = await countEmails(fake, countP({ is_unread: true }));
+
+    expect(result.count).toBe(1247);
+  });
+
+  it("sends ConsistencyLevel: eventual header", async () => {
+    const fake = new FakeGraphClient().enqueue({ "@odata.count": 0, value: [] });
+    await countEmails(fake, countP());
+
+    expect(fake.calls[0]?.headers).toEqual({ ConsistencyLevel: "eventual" });
+  });
+
+  it("uses folder-scoped endpoint when folder given", async () => {
+    const fake = new FakeGraphClient().enqueue({ "@odata.count": 50, value: [] });
+    await countEmails(fake, countP({ folder: "Inbox" }));
+
+    expect(fake.calls[0]?.pathOrUrl).toBe("/me/mailFolders/inbox/messages");
+  });
+
+  it("resolves custom folder name via listFolders", async () => {
+    const fake = new FakeGraphClient()
+      .enqueue({ value: [{ ...folderFixture, id: "fold-jobs", displayName: "Jobs" }] })
+      .enqueue({ "@odata.count": 12, value: [] });
+    const result = await countEmails(fake, countP({ folder: "Jobs" }));
+
+    expect(fake.calls[0]?.pathOrUrl).toBe("/me/mailFolders");
+    expect(fake.calls[1]?.pathOrUrl).toBe("/me/mailFolders/fold-jobs/messages");
+    expect(result.count).toBe(12);
   });
 });

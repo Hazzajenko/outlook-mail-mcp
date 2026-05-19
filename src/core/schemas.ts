@@ -16,7 +16,7 @@ export type Importance = z.infer<typeof ImportanceSchema>;
 export const InferenceClassificationSchema = z.enum(["focused", "other"]);
 export type InferenceClassification = z.infer<typeof InferenceClassificationSchema>;
 
-export const SearchParamsSchema = z.strictObject({
+const filterShape = {
   query: z.string().optional().describe("KQL free-text search across subject/body/people"),
   from: z.string().optional().describe("sender address or domain (text search)"),
   to: z.string().optional().describe("recipient address or domain (text search)"),
@@ -44,6 +44,13 @@ export const SearchParamsSchema = z.strictObject({
   inference_classification: InferenceClassificationSchema.optional().describe(
     "focused | other. Cannot combine with text search (query/from/to/subject_contains/body_contains).",
   ),
+} as const;
+
+export const FilterParamsSchema = z.strictObject(filterShape);
+export type FilterParams = z.output<typeof FilterParamsSchema>;
+
+export const SearchParamsSchema = z.strictObject({
+  ...filterShape,
   top: z
     .number()
     .int()
@@ -56,6 +63,14 @@ export const SearchParamsSchema = z.strictObject({
 
 export type SearchParamsInput = z.input<typeof SearchParamsSchema>;
 export type SearchParams = z.output<typeof SearchParamsSchema>;
+
+export const CountParamsSchema = z.strictObject(filterShape);
+export type CountParams = z.output<typeof CountParamsSchema>;
+
+export const CountResultSchema = z.object({
+  count: z.number().int(),
+});
+export type CountResult = z.infer<typeof CountResultSchema>;
 
 const EmailAddressSchema = z.object({
   name: z.string().optional(),

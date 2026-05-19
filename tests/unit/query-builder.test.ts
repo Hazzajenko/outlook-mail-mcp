@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { ParsedDateInput } from "../../src/core/date-input.ts";
-import { buildGraphQuery } from "../../src/core/query-builder.ts";
-import type { SearchParams } from "../../src/core/schemas.ts";
+import { buildCountQuery, buildGraphQuery } from "../../src/core/query-builder.ts";
+import type { CountParams, FilterParams, SearchParams } from "../../src/core/schemas.ts";
 
 const params = (over: Partial<SearchParams> = {}): SearchParams => ({
   top: 50,
   ...over,
 });
+
+const countParams = (over: Partial<CountParams> = {}): CountParams => ({ ...over }) as FilterParams;
 
 const dt = (iso: string): ParsedDateInput => ({ date: new Date(iso), dateOnly: false });
 const dateOnly = (yyyymmdd: string): ParsedDateInput => ({
@@ -217,5 +219,43 @@ describe("buildGraphQuery", () => {
         "importance eq 'low'",
       );
     });
+  });
+});
+
+describe("buildCountQuery", () => {
+  it("sets $count=true and minimal $top/$select", () => {
+    const { endpoint, query } = buildCountQuery(countParams());
+    expect(endpoint).toBe("/me/messages");
+    expect(query.get("$count")).toBe("true");
+    expect(query.get("$top")).toBe("1");
+    expect(query.get("$select")).toBe("id");
+  });
+
+  it("does NOT set $orderby (Graph rejects $count + $orderby)", () => {
+    const { query } = buildCountQuery(countParams({ since: dt("2026-05-01T00:00:00Z") }));
+    expect(query.has("$orderby")).toBe(false);
+  });
+
+  it("applies $filter for structured path", () => {
+    const { query } = buildCountQuery(countParams({ is_unread: true }));
+    expect(query.get("$filter")).toBe("isRead eq false");
+  });
+
+  it("applies $search for text path", () => {
+    const { query } = buildCountQuery(countParams({ from: "example.com" }));
+    expect(query.get("$search")).toBe('"from:example.com"');
+    expect(query.has("$filter")).toBe(false);
+  });
+
+  it("folder-scoped endpoint", () => {
+    expect(buildCountQuery(countParams(), "fold-1").endpoint).toBe(
+      "/me/mailFolders/fold-1/messages",
+    );
+  });
+
+  it("throws on inference_classification + text combo", () => {
+    expect(() =>
+      buildCountQuery(countParams({ query: "x", inference_classification: "focused" })),
+    ).toThrow(/inference_classification/);
   });
 });
