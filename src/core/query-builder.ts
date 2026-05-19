@@ -1,4 +1,4 @@
-import type { FilterParams, SearchParams } from "./schemas.ts";
+import type { FilterParams, ListBriefParams, SearchParams } from "./schemas.ts";
 
 export const LEAN_SELECT = [
   "id",
@@ -32,6 +32,8 @@ export const CONVERSATION_SELECT = [
   "webLink",
 ].join(",");
 
+export const BRIEF_SELECT = ["from", "subject", "receivedDateTime"].join(",");
+
 export interface GraphQuery {
   endpoint: string;
   query: URLSearchParams;
@@ -60,6 +62,15 @@ export function buildGraphQuery(params: SearchParams, folderId?: string): GraphQ
   const query = new URLSearchParams();
   query.set("$top", String(params.top));
   query.set("$select", LEAN_SELECT);
+  applyFilters(query, params, true);
+  return { endpoint: endpointFor(folderId), query };
+}
+
+export function buildBriefQuery(params: ListBriefParams, folderId?: string): GraphQuery {
+  const query = new URLSearchParams();
+  // Graph caps per-page at 1000; we'll auto-paginate up to params.top
+  query.set("$top", String(Math.min(params.top, 1000)));
+  query.set("$select", BRIEF_SELECT);
   applyFilters(query, params, true);
   return { endpoint: endpointFor(folderId), query };
 }

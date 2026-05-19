@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { CountParams, FilterParams, SearchParams } from "../../src/core/schemas.ts";
+import type {
+  CountParams,
+  FilterParams,
+  ListBriefParams,
+  SearchParams,
+} from "../../src/core/schemas.ts";
 import {
   countEmails,
   getConversation,
   getEmail,
+  listEmailsBrief,
   listFolders,
   search,
 } from "../../src/core/search.ts";
@@ -14,6 +20,8 @@ import { FakeGraphClient } from "../helpers/fake-graph-client.ts";
 const params = (over: Partial<SearchParams> = {}): SearchParams => ({ top: 50, ...over });
 
 const countP = (over: Partial<CountParams> = {}): CountParams => ({ ...over }) as FilterParams;
+
+const briefP = (over: Partial<ListBriefParams> = {}): ListBriefParams => ({ top: 500, ...over });
 
 const msg = (id: string) => ({ ...messageFixture, id });
 
@@ -368,5 +376,105 @@ describe("countEmails", () => {
     expect(fake.calls[0]?.pathOrUrl).toBe("/me/mailFolders");
     expect(fake.calls[1]?.pathOrUrl).toBe("/me/mailFolders/fold-jobs/messages");
     expect(result.count).toBe(12);
+  });
+});
+
+describe("listEmailsBrief", () => {
+  const briefMsg = (id: string, receivedAt: string, address: string, subject: string) => ({
+    id,
+    receivedDateTime: receivedAt,
+    subject,
+    from: { emailAddress: { address } },
+  });
+
+  it("returns newline-joined text with date | from | subject per line", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [
+        briefMsg("a", "2026-05-08T14:43:14Z", "recruiter@goldman.com", "Assessment invitation"),
+        briefMsg("b", "2026-05-07T09:00:00Z", "alerts@linkedin.com", "5 new jobs match"),
+      ],
+    });
+    const result = await listEmailsBrief(fake, briefP());
+
+    expect(result.lines).toBe(
+      "2026-05-08 14:43 | recruiter@goldman.com | Assessment invitation\n" +
+        "2026-05-07 09:00 | alerts@linkedin.com | 5 new jobs match",
+    );
+    expect(result.total_returned).toBe(2);
+    expect(result.has_more).toBe(false);
+  });
+
+  it("truncates long subjects to 80 chars with ellipsis", async () => {
+    const longSubject = "x".repeat(120);
+    const fake = new FakeGraphClient().enqueue({
+      value: [briefMsg("a", "2026-05-08T00:00:00Z", "x@y.com", longSubject)],
+    });
+    const result = await listEmailsBrief(fake, briefP());
+
+    const subjectFromLine = result.lines.split(" | ")[2];
+    expect(subjectFromLine).toHaveLength(80);
+    expect(subjectFromLine?.endsWith("…")).toBe(true);
+  });
+
+  it("auto-paginates until top reached", async () => {
+    const fake = new FakeGraphClient()
+      .enqueue({
+        value: [briefMsg("a", "2026-05-08T10:00:00Z", "a@x.com", "A")],
+        "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skip=1",
+      })
+      .enqueue({ value: [briefMsg("b", "2026-05-07T10:00:00Z", "b@x.com", "B")] });
+    const result = await listEmailsBrief(fake, briefP({ top: 5 }));
+
+    expect(fake.calls).toHaveLength(2);
+    expect(result.total_returned).toBe(2);
+    expect(result.has_more).toBe(false);
+  });
+
+  it("stops at top and reports has_more=true when more pages remain", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [
+        briefMsg("a", "2026-05-08T10:00:00Z", "a@x.com", "A"),
+        briefMsg("b", "2026-05-07T10:00:00Z", "b@x.com", "B"),
+      ],
+      "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skip=2",
+    });
+    const result = await listEmailsBrief(fake, briefP({ top: 2 }));
+
+    expect(result.total_returned).toBe(2);
+    expect(result.has_more).toBe(true);
+  });
+
+  it("truncates mid-page and sets has_more=true", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [
+        briefMsg("a", "2026-05-08T10:00:00Z", "a@x.com", "A"),
+        briefMsg("b", "2026-05-07T10:00:00Z", "b@x.com", "B"),
+        briefMsg("c", "2026-05-06T10:00:00Z", "c@x.com", "C"),
+      ],
+      "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skip=3",
+    });
+    const result = await listEmailsBrief(fake, briefP({ top: 2 }));
+
+    expect(result.total_returned).toBe(2);
+    expect(result.has_more).toBe(true);
+    expect(result.lines.split("\n")).toHaveLength(2);
+  });
+
+  it("handles missing from gracefully", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [{ id: "a", receivedDateTime: "2026-05-08T10:00:00Z", subject: "x", from: null }],
+    });
+    const result = await listEmailsBrief(fake, briefP());
+
+    expect(result.lines).toContain("(unknown)");
+  });
+
+  it("collapses whitespace in subject", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [briefMsg("a", "2026-05-08T10:00:00Z", "x@y.com", "  hello\n\t world  ")],
+    });
+    const result = await listEmailsBrief(fake, briefP());
+
+    expect(result.lines).toContain("| hello world");
   });
 });
