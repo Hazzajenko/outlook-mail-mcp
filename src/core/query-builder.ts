@@ -1,4 +1,4 @@
-import type { SearchParams } from "./schemas.ts";
+import type { FilterParams, SearchParams } from "./schemas.ts";
 
 export const LEAN_SELECT = [
   "id",
@@ -37,13 +37,11 @@ export interface GraphQuery {
   query: URLSearchParams;
 }
 
-export function buildGraphQuery(params: SearchParams, folderId?: string): GraphQuery {
-  const endpoint = folderId ? `/me/mailFolders/${folderId}/messages` : "/me/messages";
+function endpointFor(folderId: string | undefined): string {
+  return folderId ? `/me/mailFolders/${folderId}/messages` : "/me/messages";
+}
 
-  const query = new URLSearchParams();
-  query.set("$top", String(params.top));
-  query.set("$select", LEAN_SELECT);
-
+function applyFilters(query: URLSearchParams, params: FilterParams, withOrderBy: boolean): void {
   if (hasFreeText(params)) {
     if (params.inference_classification) {
       throw new Error(
@@ -52,17 +50,30 @@ export function buildGraphQuery(params: SearchParams, folderId?: string): GraphQ
     }
     query.set("$search", `"${buildKql(params)}"`);
   } else {
-    query.set("$orderby", "receivedDateTime desc");
+    if (withOrderBy) query.set("$orderby", "receivedDateTime desc");
     const filter = buildOdataFilter(params);
-    if (filter) {
-      query.set("$filter", filter);
-    }
+    if (filter) query.set("$filter", filter);
   }
-
-  return { endpoint, query };
 }
 
-function hasFreeText(p: SearchParams): boolean {
+export function buildGraphQuery(params: SearchParams, folderId?: string): GraphQuery {
+  const query = new URLSearchParams();
+  query.set("$top", String(params.top));
+  query.set("$select", LEAN_SELECT);
+  applyFilters(query, params, true);
+  return { endpoint: endpointFor(folderId), query };
+}
+
+export function buildCountQuery(params: FilterParams, folderId?: string): GraphQuery {
+  const query = new URLSearchParams();
+  query.set("$count", "true");
+  query.set("$top", "1");
+  query.set("$select", "id");
+  applyFilters(query, params, false);
+  return { endpoint: endpointFor(folderId), query };
+}
+
+function hasFreeText(p: FilterParams): boolean {
   return (
     p.query !== undefined ||
     p.from !== undefined ||
@@ -72,7 +83,7 @@ function hasFreeText(p: SearchParams): boolean {
   );
 }
 
-function buildKql(p: SearchParams): string {
+function buildKql(p: FilterParams): string {
   const terms: string[] = [];
   if (p.query) terms.push(p.query);
   if (p.from) terms.push(`from:${p.from}`);
@@ -95,7 +106,7 @@ function buildKql(p: SearchParams): string {
   return terms.join(" ");
 }
 
-function buildOdataFilter(p: SearchParams): string {
+function buildOdataFilter(p: FilterParams): string {
   const parts: string[] = [];
   if (p.since) parts.push(`receivedDateTime ge ${p.since.date.toISOString()}`);
   if (p.until) {

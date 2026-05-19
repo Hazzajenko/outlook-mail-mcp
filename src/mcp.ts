@@ -11,8 +11,8 @@ import { z } from "zod";
 import { createTokenProvider } from "./core/auth.ts";
 import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
-import { SearchParamsSchema } from "./core/schemas.ts";
-import { getConversation, getEmail, listFolders, search } from "./core/search.ts";
+import { CountParamsSchema, SearchParamsSchema } from "./core/schemas.ts";
+import { countEmails, getConversation, getEmail, listFolders, search } from "./core/search.ts";
 
 let cachedClient: GraphClient | undefined;
 function client(): GraphClient {
@@ -108,6 +108,25 @@ server.registerTool(
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
+  },
+);
+
+server.registerTool(
+  "count_emails",
+  {
+    title: "Count Outlook emails matching a filter",
+    description: [
+      "Return the total count of emails matching the filter. No bodies fetched; cheap aggregate.",
+      "",
+      "Same filter params as search_emails (folder, since/until, from, query, is_unread, inference_classification, etc.). top/cursor not applicable.",
+      "",
+      "USE BEFORE BULK OPERATIONS: e.g. count first to decide whether to call search_emails or to narrow filters further.",
+    ].join("\n"),
+    inputSchema: CountParamsSchema.shape,
+  },
+  async (args) => {
+    const result = await countEmails(client(), args);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   },
 );
 

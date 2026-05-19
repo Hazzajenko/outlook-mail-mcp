@@ -1,8 +1,21 @@
 import { z } from "zod";
 import type { GraphClient } from "./graph-client.ts";
-import { buildGraphQuery, CONVERSATION_SELECT, FULL_SELECT } from "./query-builder.ts";
+import {
+  buildCountQuery,
+  buildGraphQuery,
+  CONVERSATION_SELECT,
+  FULL_SELECT,
+} from "./query-builder.ts";
 import { mapFolder, mapFullMessage, mapLeanWithFolderId } from "./result-mapper.ts";
-import type { Folder, FullMessage, LeanMessage, SearchParams, SearchResult } from "./schemas.ts";
+import type {
+  CountParams,
+  CountResult,
+  Folder,
+  FullMessage,
+  LeanMessage,
+  SearchParams,
+  SearchResult,
+} from "./schemas.ts";
 
 const PageSchema = z.object({
   value: z.array(z.unknown()),
@@ -163,6 +176,19 @@ export async function getConversation(
 
   out.sort((a, b) => a.received_at.localeCompare(b.received_at));
   return out;
+}
+
+const CountResponseSchema = z.object({
+  "@odata.count": z.number().int(),
+});
+
+export async function countEmails(client: GraphClient, params: CountParams): Promise<CountResult> {
+  const folderId = params.folder ? await resolveFolderId(client, params.folder) : undefined;
+  const { endpoint, query } = buildCountQuery(params, folderId);
+  // Graph requires this header for $count with $search; harmless for $filter-only.
+  const raw = await client.get(endpoint, query, { ConsistencyLevel: "eventual" });
+  const { "@odata.count": count } = CountResponseSchema.parse(raw);
+  return { count };
 }
 
 export async function listFolders(client: GraphClient): Promise<Folder[]> {
