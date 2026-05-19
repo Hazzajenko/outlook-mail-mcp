@@ -11,8 +11,15 @@ import { z } from "zod";
 import { createTokenProvider } from "./core/auth.ts";
 import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
-import { CountParamsSchema, SearchParamsSchema } from "./core/schemas.ts";
-import { countEmails, getConversation, getEmail, listFolders, search } from "./core/search.ts";
+import { CountParamsSchema, ListBriefParamsSchema, SearchParamsSchema } from "./core/schemas.ts";
+import {
+  countEmails,
+  getConversation,
+  getEmail,
+  listEmailsBrief,
+  listFolders,
+  search,
+} from "./core/search.ts";
 
 let cachedClient: GraphClient | undefined;
 function client(): GraphClient {
@@ -120,12 +127,33 @@ server.registerTool(
       "",
       "Same filter params as search_emails (folder, since/until, from, query, is_unread, inference_classification, etc.). top/cursor not applicable.",
       "",
-      "USE BEFORE BULK OPERATIONS: e.g. count first to decide whether to call search_emails or to narrow filters further.",
+      "USE BEFORE BULK OPERATIONS: e.g. count first to decide whether to call list_emails_brief (cheap if <2000) or to narrow filters further.",
     ].join("\n"),
     inputSchema: CountParamsSchema.shape,
   },
   async (args) => {
     const result = await countEmails(client(), args);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  },
+);
+
+server.registerTool(
+  "list_emails_brief",
+  {
+    title: "List Outlook emails in compact text format",
+    description: [
+      "Return a compact text list — one line per email — for bulk scanning a date range. Format: `YYYY-MM-DD HH:MM | sender@domain | subject` (subject truncated to 80 chars).",
+      "",
+      "Same filter params as search_emails. Default top=500, max 2000. Auto-paginates Graph; no cursor exposed.",
+      "",
+      'USE FOR: "look through my last month", inbox-shape questions, sender breakdown. NOT for full bodies (use get_email) or pagination workflows (use search_emails).',
+      "",
+      "TOKEN BUDGET: ~70-130 chars per email. 500 emails ≈ 10K tokens, 1000 ≈ 20K, 2000 ≈ 40K. Run count_emails first to gauge.",
+    ].join("\n"),
+    inputSchema: ListBriefParamsSchema.shape,
+  },
+  async (args) => {
+    const result = await listEmailsBrief(client(), args);
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   },
 );

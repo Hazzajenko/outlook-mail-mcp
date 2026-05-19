@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { ParsedDateInput } from "../../src/core/date-input.ts";
-import { buildCountQuery, buildGraphQuery } from "../../src/core/query-builder.ts";
-import type { CountParams, FilterParams, SearchParams } from "../../src/core/schemas.ts";
+import {
+  BRIEF_SELECT,
+  buildBriefQuery,
+  buildCountQuery,
+  buildGraphQuery,
+} from "../../src/core/query-builder.ts";
+import type {
+  CountParams,
+  FilterParams,
+  ListBriefParams,
+  SearchParams,
+} from "../../src/core/schemas.ts";
 
 const params = (over: Partial<SearchParams> = {}): SearchParams => ({
   top: 50,
@@ -9,6 +19,11 @@ const params = (over: Partial<SearchParams> = {}): SearchParams => ({
 });
 
 const countParams = (over: Partial<CountParams> = {}): CountParams => ({ ...over }) as FilterParams;
+
+const briefParams = (over: Partial<ListBriefParams> = {}): ListBriefParams => ({
+  top: 500,
+  ...over,
+});
 
 const dt = (iso: string): ParsedDateInput => ({ date: new Date(iso), dateOnly: false });
 const dateOnly = (yyyymmdd: string): ParsedDateInput => ({
@@ -257,5 +272,29 @@ describe("buildCountQuery", () => {
     expect(() =>
       buildCountQuery(countParams({ query: "x", inference_classification: "focused" })),
     ).toThrow(/inference_classification/);
+  });
+});
+
+describe("buildBriefQuery", () => {
+  it("uses BRIEF_SELECT (from, subject, receivedDateTime only)", () => {
+    const { query } = buildBriefQuery(briefParams({ top: 50 }));
+    expect(query.get("$select")).toBe(BRIEF_SELECT);
+    expect(BRIEF_SELECT).toBe("from,subject,receivedDateTime");
+  });
+
+  it("caps per-page $top at 1000 even if requested top is higher", () => {
+    expect(buildBriefQuery(briefParams({ top: 50 })).query.get("$top")).toBe("50");
+    expect(buildBriefQuery(briefParams({ top: 1500 })).query.get("$top")).toBe("1000");
+  });
+
+  it("sets $orderby in $filter path", () => {
+    const { query } = buildBriefQuery(briefParams({ since: dt("2026-05-01T00:00:00Z") }));
+    expect(query.get("$orderby")).toBe("receivedDateTime desc");
+  });
+
+  it("uses $search path when text param present", () => {
+    const { query } = buildBriefQuery(briefParams({ from: "x@y.com" }));
+    expect(query.get("$search")).toBe('"from:x@y.com"');
+    expect(query.has("$orderby")).toBe(false);
   });
 });
