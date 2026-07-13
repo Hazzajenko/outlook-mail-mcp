@@ -1,28 +1,25 @@
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { defaultCachePath, makeFileCachePlugin } from "../../src/core/auth.ts";
 
 describe("defaultCachePath", () => {
   const origXdg = process.env.XDG_CONFIG_HOME;
-  const origHome = process.env.HOME;
 
   afterEach(() => {
     if (origXdg === undefined) delete process.env.XDG_CONFIG_HOME;
     else process.env.XDG_CONFIG_HOME = origXdg;
-    if (origHome !== undefined) process.env.HOME = origHome;
   });
 
   it("uses XDG_CONFIG_HOME when set", () => {
     process.env.XDG_CONFIG_HOME = "/custom/cfg";
-    expect(defaultCachePath()).toBe("/custom/cfg/outlook-query/msal-cache.json");
+    expect(defaultCachePath()).toBe(join("/custom/cfg", "outlook-query", "msal-cache.json"));
   });
 
-  it("falls back to ~/.config when XDG_CONFIG_HOME unset", () => {
+  it("falls back to <homedir>/.config when XDG_CONFIG_HOME unset", () => {
     delete process.env.XDG_CONFIG_HOME;
-    process.env.HOME = "/home/test";
-    expect(defaultCachePath()).toBe("/home/test/.config/outlook-query/msal-cache.json");
+    expect(defaultCachePath()).toBe(join(homedir(), ".config", "outlook-query", "msal-cache.json"));
   });
 });
 
@@ -52,12 +49,15 @@ describe("makeFileCachePlugin", () => {
   });
 
   it("beforeCacheAccess deserializes existing file", async () => {
-    await writeFile(cachePath.replace("/nested/cache.json", "/cache-existing.json"), "DATA");
-    const plugin = makeFileCachePlugin(
-      cachePath.replace("/nested/cache.json", "/cache-existing.json"),
-    );
+    const existing = join(tmpDir, "cache-existing.json");
+    await writeFile(existing, "DATA");
+    const plugin = makeFileCachePlugin(existing);
     let deserialized = "";
-    const ctx = makeContext({ deserialize: (d) => (deserialized = d) });
+    const ctx = makeContext({
+      deserialize: (d) => {
+        deserialized = d;
+      },
+    });
     await plugin.beforeCacheAccess(ctx);
     expect(deserialized).toBe("DATA");
   });
@@ -71,15 +71,20 @@ describe("makeFileCachePlugin", () => {
     expect(written).toBe("SERIALIZED");
   });
 
-  it("afterCacheAccess sets 0600 file permissions", async () => {
-    const plugin = makeFileCachePlugin(cachePath);
-    const ctx = makeContext({ serialize: () => "data" });
-    await plugin.afterCacheAccess(ctx);
+  // POSIX-only: NTFS does not represent Unix permission bits, so chmod(0o600)
+  // cannot be verified on Windows (mode reads back as 0o666).
+  it.skipIf(process.platform === "win32")(
+    "afterCacheAccess sets 0600 file permissions",
+    async () => {
+      const plugin = makeFileCachePlugin(cachePath);
+      const ctx = makeContext({ serialize: () => "data" });
+      await plugin.afterCacheAccess(ctx);
 
-    const st = await stat(cachePath);
-    const mode = st.mode & 0o777;
-    expect(mode).toBe(0o600);
-  });
+      const st = await stat(cachePath);
+      const mode = st.mode & 0o777;
+      expect(mode).toBe(0o600);
+    },
+  );
 
   it("afterCacheAccess skips write when cacheHasChanged is false", async () => {
     const plugin = makeFileCachePlugin(cachePath);
