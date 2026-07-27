@@ -86,7 +86,26 @@ pnpm test:watch
 pnpm typecheck
 pnpm fix          # biome check --write (lint + format + organize imports)
 pnpm check        # fix + typecheck + test (full local CI)
+pnpm smoke        # live Graph smoke test (real mailbox, read-only)
 ```
+
+### Smoke test
+
+`pnpm check` only proves the code agrees with its own fixtures. It cannot catch
+Graph returning a shape our schemas reject — e.g. a `$select` that stops
+requesting a field a Zod schema still marks required, which takes a tool down
+completely while the suite stays green.
+
+`pnpm smoke` calls every exposed operation against the real mailbox and parses
+each response through its declared result schema (`SearchResultSchema`,
+`FullMessageSchema`, …). Requires `OUTLOOK_QUERY_CLIENT_ID` and a cached token;
+read-only; exits non-zero on any failure. Cases that need data the mailbox
+doesn't have report `SKIP` rather than passing silently.
+
+Known Graph limitation it encodes: `inference_classification` combined with
+`$orderby receivedDateTime desc` returns **400 InefficientFilter** unless the
+filter also bounds `receivedDateTime` — so pass `--since`/`--until` alongside
+`--inference-classification`.
 
 ## Layout
 
