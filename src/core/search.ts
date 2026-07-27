@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { GraphClient } from "./graph-client.ts";
+import { type GraphClient, GraphHttpError } from "./graph-client.ts";
 import {
   buildBriefQuery,
   buildCountQuery,
@@ -12,6 +12,7 @@ import type {
   BriefListResult,
   CountParams,
   CountResult,
+  FilterParams,
   Folder,
   FullMessage,
   LeanMessage,
@@ -24,6 +25,43 @@ const PageSchema = z.object({
   value: z.array(z.unknown()),
   "@odata.nextLink": z.string().optional(),
 });
+
+/**
+ * Graph rejects an `inferenceClassification` filter that isn't bounded by a
+ * receivedDateTime range when the results are also sorted by receivedDateTime,
+ * with a bare 400 InefficientFilter that names neither the cause nor the fix.
+ * Translate it here, where the params that caused it are still in scope.
+ *
+ * Only the sorted operations are affected — countEmails builds its query with
+ * withOrderBy: false and works unbounded, so it does not use this wrapper.
+ */
+async function getSorted(
+  client: GraphClient,
+  params: FilterParams,
+  pathOrUrl: string,
+  query?: URLSearchParams,
+): Promise<unknown> {
+  try {
+    return await client.get(pathOrUrl, query);
+  } catch (e) {
+    if (
+      e instanceof GraphHttpError &&
+      e.body.includes("InefficientFilter") &&
+      params.inference_classification !== undefined &&
+      params.since === undefined &&
+      params.until === undefined
+    ) {
+      throw new Error(
+        `Graph rejected inference_classification='${params.inference_classification}' with 400 InefficientFilter: ` +
+          "results are sorted by receivedDateTime and Graph cannot combine that sort with an unbounded " +
+          "inference filter. Pass since and/or until to bound the range. (count_emails does not sort, " +
+          "so it works without a bound.)",
+        { cause: e },
+      );
+    }
+    throw e;
+  }
+}
 
 const WELL_KNOWN_FOLDERS = new Set([
   "archive",
@@ -64,7 +102,7 @@ export async function search(client: GraphClient, params: SearchParams): Promise
   let hasMore = false;
 
   while (true) {
-    const raw = await client.get(pagePath, pageQuery);
+    const raw = await getSorted(client, params, pagePath, pageQuery);
     const { value, "@odata.nextLink": nextLink } = PageSchema.parse(raw);
     const remaining = params.top - out.length;
 
@@ -216,7 +254,7 @@ export async function listEmailsBrief(
   let hasMore = false;
 
   while (true) {
-    const raw = await client.get(pagePath, pageQuery);
+    const raw = await getSorted(client, params, pagePath, pageQuery);
     const { value, "@odata.nextLink": nextLink } = PageSchema.parse(raw);
     const remaining = params.top - lines.length;
 

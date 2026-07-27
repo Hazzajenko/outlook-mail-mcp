@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { ParsedDateInput } from "../../src/core/date-input.ts";
+import { GraphHttpError } from "../../src/core/graph-client.ts";
 import type {
   CountParams,
   FilterParams,
@@ -476,5 +478,89 @@ describe("listEmailsBrief", () => {
     const result = await listEmailsBrief(fake, briefP());
 
     expect(result.lines).toContain("| hello world");
+  });
+});
+
+describe("InefficientFilter translation", () => {
+  const inefficient = () =>
+    new GraphHttpError(
+      400,
+      "Bad Request",
+      '{"error":{"code":"InefficientFilter","message":"The restriction or sort order is too complex for this operation."}}',
+    );
+
+  const bound = (): ParsedDateInput => ({
+    date: new Date("2026-05-01T00:00:00Z"),
+    dateOnly: false,
+  });
+
+  it("explains the missing date bound on search", async () => {
+    const fake = new FakeGraphClient().enqueueError(inefficient());
+
+    await expect(search(fake, params({ inference_classification: "focused" }))).rejects.toThrow(
+      /Pass since and\/or until/,
+    );
+  });
+
+  it("explains the missing date bound on listEmailsBrief", async () => {
+    const fake = new FakeGraphClient().enqueueError(inefficient());
+
+    await expect(
+      listEmailsBrief(fake, briefP({ inference_classification: "other" })),
+    ).rejects.toThrow(/Pass since and\/or until/);
+  });
+
+  it("names the offending value and keeps the original error as cause", async () => {
+    const original = inefficient();
+    const fake = new FakeGraphClient().enqueueError(original);
+
+    const err = await search(fake, params({ inference_classification: "focused" })).catch(
+      (e: unknown) => e,
+    );
+
+    expect((err as Error).message).toContain("inference_classification='focused'");
+    expect((err as Error).cause).toBe(original);
+  });
+
+  // The hint would be wrong here — a bound is already present, so the 400 has
+  // some other cause and must not be papered over with misleading advice.
+  it("rethrows untouched when a date bound is already present", async () => {
+    const original = inefficient();
+    const fake = new FakeGraphClient().enqueueError(original);
+
+    const err = await search(
+      fake,
+      params({ inference_classification: "focused", since: bound() }),
+    ).catch((e: unknown) => e);
+
+    expect(err).toBe(original);
+  });
+
+  it("rethrows untouched when inference_classification is absent", async () => {
+    const original = inefficient();
+    const fake = new FakeGraphClient().enqueueError(original);
+
+    const err = await search(fake, params()).catch((e: unknown) => e);
+
+    expect(err).toBe(original);
+  });
+
+  it("rethrows unrelated Graph errors untouched", async () => {
+    const original = new GraphHttpError(429, "Too Many Requests", '{"error":{"code":"Throttled"}}');
+    const fake = new FakeGraphClient().enqueueError(original);
+
+    const err = await search(fake, params({ inference_classification: "focused" })).catch(
+      (e: unknown) => e,
+    );
+
+    expect(err).toBe(original);
+  });
+
+  it("leaves countEmails unwrapped — it does not sort, so it needs no bound", async () => {
+    const fake = new FakeGraphClient().enqueue({ "@odata.count": 7 });
+
+    const result = await countEmails(fake, countP({ inference_classification: "focused" }));
+
+    expect(result.count).toBe(7);
   });
 });

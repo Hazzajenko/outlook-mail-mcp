@@ -15,6 +15,12 @@ export class FakeGraphClient implements GraphClient {
     return this;
   }
 
+  /** Queued like a response, but thrown when its turn comes. */
+  enqueueError(error: Error): this {
+    this.responses.push(error);
+    return this;
+  }
+
   async get(
     pathOrUrl: string,
     query?: URLSearchParams,
@@ -24,6 +30,8 @@ export class FakeGraphClient implements GraphClient {
     if (this.responses.length === 0) {
       throw new Error(`FakeGraphClient: unexpected call to ${pathOrUrl}`);
     }
-    return this.responses.shift();
+    const next = this.responses.shift();
+    if (next instanceof Error) throw next;
+    return next;
   }
 }

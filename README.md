@@ -58,7 +58,7 @@ outlook-query folders
 
 Flags: `-q/--query`, `--from`, `--to`, `--subject`, `--body`, `--since`, `--until`, `--has-attachment`, `--unread` / `--read`, `--folder`, `--importance`, `--inference-classification` (`focused`/`other`), `--top`, `--json`. Dates: ISO (`2026-05-01`) or relative (`-7d`, `-2w`, `-3h`, `-30m`).
 
-`--inference-classification` needs a `--since`/`--until` alongside it: results are sorted by `receivedDateTime`, and Graph rejects an unbounded inference filter combined with that sort (400 `InefficientFilter`). Same applies to the `list_emails_brief` MCP tool; `count_emails` doesn't sort and is exempt.
+`--inference-classification` needs a `--since`/`--until` alongside it: results are sorted by `receivedDateTime`, and Graph rejects an unbounded inference filter combined with that sort (400 `InefficientFilter`). Same applies to the `list_emails_brief` MCP tool; `count_emails` doesn't sort and is exempt. Omitting the bound raises an error that says so — the raw Graph 400 names neither the cause nor the fix.
 
 ## MCP (Claude Code)
 

@@ -154,6 +154,24 @@ async function main(): Promise<void> {
     return `${res.total_returned} results, ${named} with folder name`;
   });
 
+  // The unbounded form is the failure the bound above exists to avoid. Assert we
+  // turn Graph's opaque 400 into actionable advice — and that the limitation is
+  // still real. If Graph starts accepting this, the case fails, which is the
+  // signal to drop the translation in search.ts and the docs around it.
+  await check("search (unbounded inference)", async () => {
+    const params = SearchParamsSchema.parse({ inference_classification: "focused", top: 3 });
+    try {
+      await search(client, params);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (!message.includes("Pass since and/or until")) {
+        throw new Error(`400 reached the caller untranslated: ${message}`);
+      }
+      return "opaque 400 translated";
+    }
+    throw new Error("Graph now accepts an unbounded inference filter — drop the translation");
+  });
+
   // The cursor path swaps the built query for a raw Graph nextLink URL — unit
   // tests fake that URL, so this is the only place it meets the real thing.
   await check("search (cursor pagination)", async () => {
