@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LEAN_SELECT } from "../../src/core/query-builder.ts";
 import {
   cleanPreview,
   mapFolder,
@@ -27,6 +28,16 @@ describe("mapLeanMessage", () => {
   it("does NOT include web_link on lean", () => {
     const m = mapLeanMessage(messageFixture);
     expect(m).not.toHaveProperty("web_link");
+  });
+
+  // Regression: the fixture is a FULL_SELECT payload, so it masked a required
+  // `webLink` in the Graph schema that LEAN_SELECT never asks for — every real
+  // search() threw on parse. Parse exactly what LEAN_SELECT requests, nothing more.
+  it("parses a payload containing only LEAN_SELECT fields", () => {
+    const lean = Object.fromEntries(
+      Object.entries(messageFixture).filter(([k]) => LEAN_SELECT.split(",").includes(k)),
+    );
+    expect(() => mapLeanMessage(lean)).not.toThrow();
   });
 
   it("does NOT include parent_folder_id (replaced by folder, resolved later)", () => {
