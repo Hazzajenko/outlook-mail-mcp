@@ -94,13 +94,52 @@ function hasFreeText(p: FilterParams): boolean {
   );
 }
 
+/**
+ * Escape a value for transport inside the double-quoted `$search` string. Graph
+ * accepts `\"` there; a bare `"` is a 400 ("Syntax error: character '\"' is not
+ * valid at position N"). Escaping preserves KQL phrase semantics rather than
+ * destroying them — Graph unwraps the transport string first, so `\"a b\"`
+ * still reaches KQL as the phrase `"a b"`.
+ */
+function escapeKql(v: string): string {
+  return v.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+/**
+ * Build a field-scoped KQL term.
+ *
+ * These params are documented as substring matches, not KQL, so a multi-word
+ * value has to be a phrase. Bare interpolation degrades silently: KQL reads
+ * `subject:online assessment` as `subject:online` AND a loose `assessment`,
+ * which matches mail with neither word in the subject. Phrase-wrapping binds
+ * the whole value to the field.
+ *
+ * Inner quotes are dropped rather than escaped — KQL has no in-phrase escape
+ * for them, so `\"say \"hi\" there\"` would terminate the phrase early.
+ */
+function kqlField(field: string, value: string): string {
+  const v = value.replace(/"/g, " ").trim();
+  const esc = escapeKql(v);
+  return /\s/.test(v) ? `${field}:\\"${esc}\\"` : `${field}:${esc}`;
+}
+
 function buildKql(p: FilterParams): string {
   const terms: string[] = [];
-  if (p.query) terms.push(p.query);
-  if (p.from) terms.push(`from:${p.from}`);
-  if (p.to) terms.push(`to:${p.to}`);
-  if (p.subject_contains) terms.push(`subject:${p.subject_contains}`);
-  if (p.body_contains) terms.push(`body:${p.body_contains}`);
+  if (p.query) {
+    // `query` is documented as raw KQL, so the caller's own quotes are theirs to
+    // spend on phrases. An odd count can only produce an unterminated phrase, so
+    // name it here instead of letting Graph answer with an opaque 400.
+    if (((p.query.match(/"/g) ?? []).length & 1) === 1) {
+      throw new Error(
+        `query has an unbalanced double quote: ${p.query}. Quotes in query delimit KQL phrases — pair them, or drop them to search the words separately.`,
+      );
+    }
+    terms.push(escapeKql(p.query));
+  }
+  if (p.from) terms.push(kqlField("from", p.from));
+  if (p.to) terms.push(kqlField("to", p.to));
+  if (p.subject_contains) terms.push(kqlField("subject", p.subject_contains));
+  if (p.body_contains) terms.push(kqlField("body", p.body_contains));
   if (p.has_attachment !== undefined) {
     terms.push(`hasattachment:${p.has_attachment ? "yes" : "no"}`);
   }
