@@ -188,6 +188,66 @@ describe("getEmail", () => {
     expect(fake.calls[0]?.query?.get("$select")).toContain("internetMessageHeaders");
   });
 
+  describe("header trimming", () => {
+    const noisy = {
+      ...(messageFixture as Record<string, unknown>),
+      internetMessageHeaders: [
+        { name: "Authentication-Results", value: "spf=pass" },
+        { name: "Return-Path", value: "<bounces@example.com>" },
+        { name: "reply-to", value: "<human@example.com>" },
+        { name: "List-Unsubscribe", value: "<https://example.com/u>" },
+        { name: "X-Microsoft-Antispam-Message-Info", value: "x".repeat(2000) },
+        { name: "DKIM-Signature", value: "v=1; a=rsa-sha256; ..." },
+        { name: "X-MS-Exchange-Organization-SCL", value: "1" },
+      ],
+    };
+
+    it("keeps only the notable headers by default", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      const result = await getEmail(fake, "AAMkADYzAA");
+
+      expect(result.internet_message_headers.map((h) => h.name)).toEqual([
+        "Authentication-Results",
+        "Return-Path",
+        "reply-to",
+        "List-Unsubscribe",
+      ]);
+    });
+
+    it("matches header names case-insensitively (senders vary the casing)", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      const result = await getEmail(fake, "AAMkADYzAA");
+
+      expect(result.internet_message_headers).toContainEqual({
+        name: "reply-to",
+        value: "<human@example.com>",
+      });
+    });
+
+    it("returns every header when include_all_headers is set", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      const result = await getEmail(fake, "AAMkADYzAA", { include_all_headers: true });
+
+      expect(result.internet_message_headers).toHaveLength(7);
+    });
+
+    it("still requests them via $select — Graph cannot select a subset", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      await getEmail(fake, "AAMkADYzAA");
+
+      expect(fake.calls[0]?.query?.get("$select")).toContain("internetMessageHeaders");
+    });
+
+    it("leaves the two headers the CLI renders intact", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      const result = await getEmail(fake, "AAMkADYzAA");
+
+      const names = result.internet_message_headers.map((h) => h.name);
+      expect(names).toContain("Authentication-Results");
+      expect(names).toContain("Return-Path");
+    });
+  });
+
   it('sends Prefer: outlook.body-content-type="text" by default', async () => {
     const fake = new FakeGraphClient().enqueue(messageFixture);
     await getEmail(fake, "AAMkADYzAA");

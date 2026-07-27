@@ -117,20 +117,21 @@ program
   .command("get <id>")
   .description("Get full email by id")
   .option("--body-format <fmt>", "text | html (default: text)")
+  .option("--all-headers", "return every internet message header, not just the notable few")
   .option("--json", "JSON output")
   .action(async (id: string, rawOpts: unknown) => {
     const opts = z
       .object({
         json: z.boolean().optional(),
         bodyFormat: z.enum(["text", "html"]).optional(),
+        allHeaders: z.boolean().optional(),
       })
       .parse(rawOpts);
     const client = buildClient();
-    const result = await getEmail(
-      client,
-      id,
-      opts.bodyFormat ? { body_format: opts.bodyFormat } : {},
-    );
+    const result = await getEmail(client, id, {
+      ...(opts.bodyFormat ? { body_format: opts.bodyFormat } : {}),
+      ...(opts.allHeaders !== undefined ? { include_all_headers: opts.allHeaders } : {}),
+    });
     if (opts.json) {
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     } else {
