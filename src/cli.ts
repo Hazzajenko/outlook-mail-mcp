@@ -95,7 +95,10 @@ program
   .option("--read", "only read (already-opened)")
   .option("--folder <name>", "folder (well-known: inbox/sent/archive/... or custom name)")
   .option("--importance <level>", "low | normal | high")
-  .option("--inference-classification <value>", "focused | other (Outlook Focused/Other split)")
+  .option(
+    "--inference-classification <value>",
+    "focused | other (Outlook Focused/Other split); needs --since/--until",
+  )
   .option("--top <n>", "max results (1-500, default 50)", (v) => parseInt(v, 10))
   .option("--json", "JSON output")
   .action(async (rawOpts: unknown) => {
