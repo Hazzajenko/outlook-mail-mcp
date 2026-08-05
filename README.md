@@ -24,7 +24,7 @@ pnpm build
 5. Create.
 6. On the new app's **Overview** page, copy the **Application (client) ID**.
 7. **Authentication** → **Allow public client flows** → **Yes** → Save.
-8. **API permissions** → Add → Microsoft Graph → Delegated permissions → check `Mail.Read` and `offline_access` → Add. Click **Grant admin consent** (if available) or accept consent on first run.
+8. **API permissions** → Add → Microsoft Graph → Delegated permissions → check `Mail.Read` and `offline_access` → Add. Personal accounts have no admin consent — you accept the consent prompt on first sign-in. (Work/school tenants can optionally click **Grant admin consent**.)
 
 ### 3. Configure env
 
@@ -35,6 +35,11 @@ OUTLOOK_QUERY_CLIENT_ID=<paste app id>
 # Optional. Default 'common' (personal + work). Use 'consumers' to lock to personal.
 OUTLOOK_QUERY_TENANT_ID=common
 ```
+
+**If you chose "Personal Microsoft accounts only" in step 2, you must set
+`OUTLOOK_QUERY_TENANT_ID=consumers`.** Such apps reject the default `common`
+authority with `AADSTS9002331: Application is configured for use by Microsoft
+Account users only. Please use the /consumers endpoint`.
 
 The CLI auto-loads `.env` from cwd via Node's built-in `process.loadEnvFile()`. The MCP server does too, but Claude Code launches it from its own cwd — set env via `.mcp.json` `env` block instead (see below).
 
@@ -79,6 +84,28 @@ After `pnpm build`, register in your `.mcp.json` or `~/.claude/mcp_servers.json`
 ```
 
 Tools exposed: `search_emails`, `get_email`, `get_conversation`, `count_emails`, `list_emails_brief`, `list_folders`. Same schema as the CLI for the search filter.
+
+## Troubleshooting
+
+**`AADSTS9002331` during auth** — your app registration is "Personal Microsoft
+accounts only" but the tenant is `common`. Set `OUTLOOK_QUERY_TENANT_ID=consumers`.
+
+**MCP tools don't show up in the client** — fully quit and relaunch the host
+(Claude Desktop in particular does not hot-reload config), then check the host's
+MCP logs. To smoke-test the server directly:
+
+```
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"x","version":"0"}}}' | node dist/mcp.js
+```
+
+A JSON response should print within a few seconds.
+
+**`OUTLOOK_QUERY_CLIENT_ID env var not set` at tool-call time** — the host's
+working directory doesn't contain your `.env`. Pass the variable via the MCP
+config's `env` block, or `cd` into the project dir in the launch command.
+
+**Token expired / 401 from Graph** — re-run `pnpm exec outlook-query auth`
+(silent refresh usually works; falls back to a device-code prompt).
 
 ## Development
 
