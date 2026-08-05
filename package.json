@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Query personal Outlook via Microsoft Graph. CLI + MCP server for Claude.",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22"
