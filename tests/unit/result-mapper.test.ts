@@ -138,7 +138,7 @@ describe("mapFullMessage", () => {
     expect(m.body).toBe("<html><body>Dear candidate...</body></html>");
     expect(m.body_content_type).toBe("html");
     expect(m.importance).toBe("high");
-    expect(m.to).toEqual([{ name: "Harry Jenkins", address: "jenkinsh1@outlook.com" }]);
+    expect(m.to).toEqual([{ name: "Test Recipient", address: "recipient@example.com" }]);
     expect(m.cc).toEqual([{ address: "team@goldman.com" }]);
   });
 

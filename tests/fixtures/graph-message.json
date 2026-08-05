@@ -19,7 +19,7 @@
     }
   },
   "toRecipients": [
-    { "emailAddress": { "name": "Harry Jenkins", "address": "jenkinsh1@outlook.com" } }
+    { "emailAddress": { "name": "Test Recipient", "address": "recipient@example.com" } }
   ],
   "ccRecipients": [
     { "emailAddress": { "address": "team@goldman.com" } }
