@@ -15,20 +15,51 @@ pnpm install
 pnpm build
 ```
 
-### 2. Register an Azure app
+### 2. Run guided setup
+
+```
+pnpm exec outlook-query setup
+```
+
+The command walks you through registering the Entra app (Microsoft does not
+allow this to be automated for personal accounts — the API returns
+`403 not authorized to create apps using consumer identity`, see
+`docs/adr/0002`): it prints the portal steps, asks for the resulting
+**Application (client) ID**, writes `.env` in the current directory
+(non-destructively — other keys are preserved), prints the values, and then
+**verifies** the registration with a device-code sign-in. A successful
+verification caches the token, so setup doubles as first-run auth — no
+separate `auth` step needed. If verification fails, the error tells you which
+portal step to revisit.
+
+Flags:
+
+- `--personal-only` — you picked **Personal Microsoft accounts only** in step 3
+  of the walkthrough; writes `OUTLOOK_QUERY_TENANT_ID=consumers` to match. The
+  tenant value is always derived from your audience choice, so the
+  `AADSTS9002331` mismatch cannot happen on this path.
+- `--client-id <id>` — skip the prompt (non-interactive / agent use).
+- `--no-verify` — skip the verification sign-in; run `outlook-query auth` later.
+
+Env can also live in your shell or an MCP `env` block instead of `.env` — the
+values are always printed for copy-paste. The CLI auto-loads `.env` from cwd
+via Node's built-in `process.loadEnvFile()`. The MCP server does too, but
+Claude Code launches it from its own cwd — set env via `.mcp.json` `env` block
+instead (see below).
+
+### Manual setup (if the guided flow fails)
+
+The step numbers below match the walkthrough and its error messages.
 
 1. <https://entra.microsoft.com> → Identity → Applications → App registrations → **New registration**.
 2. Name: anything (e.g. `outlook-query`).
-3. Supported account types: **Personal Microsoft accounts only** (or *Accounts in any org + personal* if you have both).
-4. Redirect URI: leave blank (device code flow needs none).
-5. Create.
-6. On the new app's **Overview** page, copy the **Application (client) ID**.
-7. **Authentication** → **Allow public client flows** → **Yes** → Save.
-8. **API permissions** → Add → Microsoft Graph → Delegated permissions → check `Mail.Read` and `offline_access` → Add. Personal accounts have no admin consent — you accept the consent prompt on first sign-in. (Work/school tenants can optionally click **Grant admin consent**.)
+3. Supported account types: **Accounts in any org + personal** (default), or **Personal Microsoft accounts only** (then use `--personal-only` / `OUTLOOK_QUERY_TENANT_ID=consumers`).
+4. Redirect URI: leave blank (device code flow needs none). Register.
+5. On the new app's **Overview** page, copy the **Application (client) ID**.
+6. **Authentication** → **Allow public client flows** → **Yes** → Save.
+7. **API permissions** → Add → Microsoft Graph → Delegated permissions → check `Mail.Read` and `offline_access` → Add. Personal accounts have no admin consent — you accept the consent prompt on first sign-in. (Work/school tenants can optionally click **Grant admin consent**.)
 
-### 3. Configure env
-
-Create `.env` in the project root (gitignored), or export in your shell:
+Then create `.env` in the project root (gitignored), or export in your shell:
 
 ```
 OUTLOOK_QUERY_CLIENT_ID=<paste app id>
@@ -36,14 +67,12 @@ OUTLOOK_QUERY_CLIENT_ID=<paste app id>
 OUTLOOK_QUERY_TENANT_ID=common
 ```
 
-**If you chose "Personal Microsoft accounts only" in step 2, you must set
+**If you chose "Personal Microsoft accounts only" in step 3, you must set
 `OUTLOOK_QUERY_TENANT_ID=consumers`.** Such apps reject the default `common`
 authority with `AADSTS9002331: Application is configured for use by Microsoft
 Account users only. Please use the /consumers endpoint`.
 
-The CLI auto-loads `.env` from cwd via Node's built-in `process.loadEnvFile()`. The MCP server does too, but Claude Code launches it from its own cwd — set env via `.mcp.json` `env` block instead (see below).
-
-### 4. First-run auth
+Finally authenticate:
 
 ```
 pnpm exec outlook-query auth
@@ -88,7 +117,8 @@ Tools exposed: `search_emails`, `get_email`, `get_conversation`, `count_emails`,
 ## Troubleshooting
 
 **`AADSTS9002331` during auth** — your app registration is "Personal Microsoft
-accounts only" but the tenant is `common`. Set `OUTLOOK_QUERY_TENANT_ID=consumers`.
+accounts only" but the tenant is `common`. Set `OUTLOOK_QUERY_TENANT_ID=consumers`
+(or re-run `outlook-query setup --personal-only`, which derives it for you).
 
 **MCP tools don't show up in the client** — fully quit and relaunch the host
 (Claude Desktop in particular does not hot-reload config), then check the host's

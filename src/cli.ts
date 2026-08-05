@@ -5,14 +5,24 @@ try {
   // no .env present; fine
 }
 
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { z } from "zod";
 import { renderFolders, renderFullMessage, renderSearchResults } from "./cli-render.ts";
 import { createTokenProvider, type TokenProvider } from "./core/auth.ts";
+import { mergeEnvContent } from "./core/env-file.ts";
 import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
 import { type SearchParamsInput, SearchParamsSchema } from "./core/schemas.ts";
 import { getConversation, getEmail, listFolders, search } from "./core/search.ts";
+import {
+  buildEnvUpdates,
+  buildSetupSteps,
+  isValidClientId,
+  translateVerifyError,
+} from "./core/setup.ts";
 
 const SearchOptsSchema = z.object({
   query: z.string().optional(),
@@ -178,6 +188,71 @@ program
     } else {
       process.stdout.write(renderFolders(folders));
     }
+  });
+
+program
+  .command("setup")
+  .description("Guided Entra app registration: portal walkthrough, .env write, verified auth")
+  .option("--client-id <id>", "skip the prompt and use this Application (client) ID")
+  .option(
+    "--personal-only",
+    "app registered for personal Microsoft accounts only (tenant: consumers)",
+  )
+  .option("--no-verify", "skip the device-code verification sign-in")
+  .action(async (rawOpts: unknown) => {
+    const opts = z
+      .object({
+        clientId: z.string().optional(),
+        personalOnly: z.boolean().optional(),
+        verify: z.boolean(),
+      })
+      .parse(rawOpts);
+    const personalOnly = opts.personalOnly === true;
+
+    let clientId = opts.clientId;
+    if (clientId === undefined) {
+      process.stderr.write(`${buildSetupSteps(personalOnly)}\n`);
+      const rl = createInterface({ input: process.stdin, output: process.stderr });
+      try {
+        clientId = (await rl.question("Paste the Application (client) ID (step 5): ")).trim();
+      } finally {
+        rl.close();
+      }
+    }
+    if (!isValidClientId(clientId)) {
+      throw new Error(
+        `"${clientId}" is not an Application (client) ID (expected a GUID like 00000000-0000-0000-0000-000000000000). Copy it from the app's Overview page (step 5).`,
+      );
+    }
+
+    const updates = buildEnvUpdates(clientId, personalOnly);
+    const envPath = join(process.cwd(), ".env");
+    let existing: string | undefined;
+    try {
+      existing = await readFile(envPath, "utf-8");
+    } catch (e: unknown) {
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+    }
+    await writeFile(envPath, mergeEnvContent(existing, updates));
+    process.stderr.write(`✓ wrote ${envPath}\n`);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== null) process.stdout.write(`${key}=${value}\n`);
+    }
+
+    if (!opts.verify) {
+      process.stderr.write("Skipped verification (--no-verify). Run `outlook-query auth` later.\n");
+      return;
+    }
+    process.stderr.write("Verifying the registration via device-code sign-in…\n");
+    try {
+      const provider = createTokenProvider(
+        personalOnly ? { clientId, tenantId: "consumers" } : { clientId },
+      );
+      await provider.getToken();
+    } catch (e: unknown) {
+      throw new Error(translateVerifyError((e as Error).message, personalOnly));
+    }
+    process.stderr.write("✓ setup complete — token acquired and cached; queries will work now\n");
   });
 
 program
