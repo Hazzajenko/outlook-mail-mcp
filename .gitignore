@@ -8,6 +8,9 @@ dist
 *.cache.json
 msal-cache.json
 
+# local MCP config (commit .mcp.json.example instead)
+.mcp.json
+
 # env
 .env
 .env.local
