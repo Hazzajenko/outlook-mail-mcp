@@ -27,7 +27,8 @@ const GraphMessageSchema = z.object({
   conversationId: z.string(),
   parentFolderId: z.string().optional(),
   isRead: z.boolean(),
-  webLink: z.string(),
+  // Only requested by FULL_SELECT / CONVERSATION_SELECT — absent on lean search results.
+  webLink: z.string().optional(),
   body: z
     .object({
       contentType: z.string(),
@@ -107,7 +108,7 @@ export function mapFullMessage(raw: unknown): FullMessage {
     body_content_type: contentTypeRaw === "html" ? "html" : "text",
     importance: m.importance ?? "normal",
     internet_message_headers: m.internetMessageHeaders ?? [],
-    web_link: m.webLink,
+    web_link: m.webLink ?? "",
   };
 }
 

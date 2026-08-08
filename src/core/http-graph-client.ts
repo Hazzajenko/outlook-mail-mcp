@@ -1,4 +1,7 @@
-import type { GraphClient } from "./graph-client.ts";
+import { type GraphClient, GraphHttpError } from "./graph-client.ts";
+
+// Re-exported for callers that already import it from here.
+export { GraphHttpError };
 
 const DEFAULT_BASE_URL = "https://graph.microsoft.com/v1.0";
 
@@ -42,19 +45,5 @@ export class HttpGraphClient implements GraphClient {
     }
 
     return res.json();
-  }
-}
-
-export class GraphHttpError extends Error {
-  readonly status: number;
-  readonly statusText: string;
-  readonly body: string;
-
-  constructor(status: number, statusText: string, body: string) {
-    super(`Graph ${status} ${statusText}: ${body.slice(0, 500)}`);
-    this.name = "GraphHttpError";
-    this.status = status;
-    this.statusText = statusText;
-    this.body = body;
   }
 }
