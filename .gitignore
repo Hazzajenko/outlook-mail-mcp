@@ -16,9 +16,6 @@ msal-cache.json
 # personal install notes
 MCP_INSTALL.md
 
-# local agent-workflow config
-docs/agents/
-
 # editor
 .vscode
 .idea
