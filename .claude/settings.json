@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=$(jq -r '.tool_input.file_path // .tool_response.filePath'); case \"$F\" in *.ts) pnpm exec biome check --write \"$F\";; esac; true"
+          }
+        ]
+      }
+    ]
+  }
+}
