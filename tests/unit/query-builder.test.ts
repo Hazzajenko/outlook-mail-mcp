@@ -228,11 +228,70 @@ describe("buildGraphQuery", () => {
     });
   });
 
-  describe("OData string escaping", () => {
-    it("doubles single quotes in folder ID is not relevant here — enums only need exact match", () => {
-      expect(buildGraphQuery(params({ importance: "low" })).query.get("$filter")).toBe(
-        "importance eq 'low'",
+  describe("KQL escaping and phrasing", () => {
+    it("phrase-wraps a multi-word field value so it binds to the field", () => {
+      // Bare `subject:online assessment` reads as subject:online AND a loose
+      // `assessment`, matching mail with neither word in the subject.
+      expect(
+        buildGraphQuery(params({ subject_contains: "online assessment" })).query.get("$search"),
+      ).toBe('"subject:\\"online assessment\\""');
+    });
+
+    it("leaves a single-token field value unquoted", () => {
+      expect(buildGraphQuery(params({ from: "example.com" })).query.get("$search")).toBe(
+        '"from:example.com"',
       );
+    });
+
+    it("phrase-wraps multi-word from/to/body the same way", () => {
+      expect(buildGraphQuery(params({ from: "Jane Doe" })).query.get("$search")).toBe(
+        '"from:\\"Jane Doe\\""',
+      );
+      expect(buildGraphQuery(params({ to: "Team Alpha" })).query.get("$search")).toBe(
+        '"to:\\"Team Alpha\\""',
+      );
+      expect(buildGraphQuery(params({ body_contains: "please review" })).query.get("$search")).toBe(
+        '"body:\\"please review\\""',
+      );
+    });
+
+    it("drops inner quotes from a field value (KQL has no in-phrase escape)", () => {
+      expect(
+        buildGraphQuery(params({ subject_contains: 'say "hi" there' })).query.get("$search"),
+      ).toBe('"subject:\\"say  hi  there\\""');
+    });
+
+    it("escapes quotes in query so they survive transport as KQL phrases", () => {
+      expect(
+        buildGraphQuery(params({ query: '"thank you for completing"' })).query.get("$search"),
+      ).toBe('"\\"thank you for completing\\""');
+    });
+
+    it("escapes backslashes in query", () => {
+      expect(buildGraphQuery(params({ query: "a\\b" })).query.get("$search")).toBe('"a\\\\b"');
+    });
+
+    it("throws on an unbalanced quote in query instead of emitting a 400", () => {
+      expect(() => buildGraphQuery(params({ query: 'say "hi' }))).toThrow(
+        /unbalanced double quote/,
+      );
+    });
+
+    it("accepts balanced quotes in query", () => {
+      expect(() => buildGraphQuery(params({ query: 'subject:"a" OR subject:"b"' }))).not.toThrow();
+    });
+
+    it("phrasing applies on the count and brief paths too", () => {
+      expect(
+        buildCountQuery(countParams({ subject_contains: "online assessment" })).query.get(
+          "$search",
+        ),
+      ).toBe('"subject:\\"online assessment\\""');
+      expect(
+        buildBriefQuery(briefParams({ subject_contains: "online assessment" })).query.get(
+          "$search",
+        ),
+      ).toBe('"subject:\\"online assessment\\""');
     });
   });
 });

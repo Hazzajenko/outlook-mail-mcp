@@ -75,14 +75,23 @@ server.registerTool(
   {
     title: "Get full email by id",
     description:
-      "Fetch the full body and headers of one email by its Graph id. Body returned as plain text by default (server-side HTML→text conversion); pass body_format='html' for raw HTML.",
+      "Fetch the full body of one email by its Graph id. Body returned as plain text by default (server-side HTML→text conversion); pass body_format='html' for raw HTML. Returns only notable internet headers (Authentication-Results, Return-Path, Reply-To, List-Unsubscribe); the ~60 Graph sends are mostly spam-filter internals that cost more tokens than the body. Pass include_all_headers=true when debugging mail routing or authenticity.",
     inputSchema: {
       id: z.string().describe("Graph message id"),
       body_format: z.enum(["text", "html"]).optional().describe("Body format; defaults to 'text'"),
+      include_all_headers: z
+        .boolean()
+        .optional()
+        .describe(
+          "Return every internet message header instead of the notable few. Verbose — only for routing/authenticity debugging.",
+        ),
     },
   },
-  async ({ id, body_format }) => {
-    const result = await getEmail(client(), id, body_format ? { body_format } : {});
+  async ({ id, body_format, include_all_headers }) => {
+    const result = await getEmail(client(), id, {
+      ...(body_format ? { body_format } : {}),
+      ...(include_all_headers !== undefined ? { include_all_headers } : {}),
+    });
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };

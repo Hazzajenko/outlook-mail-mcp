@@ -42,7 +42,7 @@ const filterShape = {
   is_unread: z.boolean().optional(),
   importance: ImportanceSchema.optional(),
   inference_classification: InferenceClassificationSchema.optional().describe(
-    "focused | other. Cannot combine with text search (query/from/to/subject_contains/body_contains).",
+    "focused | other (Outlook Focused/Other split). Pair it with since and/or until: on search_emails and list_emails_brief, which sort by receivedDateTime, Graph rejects an unbounded inference filter with 400 InefficientFilter. count_emails does not sort and is exempt. Cannot combine with text search (query/from/to/subject_contains/body_contains).",
   ),
 } as const;
 

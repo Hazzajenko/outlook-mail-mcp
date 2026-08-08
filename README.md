@@ -15,20 +15,51 @@ pnpm install
 pnpm build
 ```
 
-### 2. Register an Azure app
+### 2. Run guided setup
+
+```
+pnpm exec outlook-query setup
+```
+
+The command walks you through registering the Entra app (Microsoft does not
+allow this to be automated for personal accounts — the API returns
+`403 not authorized to create apps using consumer identity`, see
+`docs/adr/0002`): it prints the portal steps, asks for the resulting
+**Application (client) ID**, writes `.env` in the current directory
+(non-destructively — other keys are preserved), prints the values, and then
+**verifies** the registration with a device-code sign-in. A successful
+verification caches the token, so setup doubles as first-run auth — no
+separate `auth` step needed. If verification fails, the error tells you which
+portal step to revisit.
+
+Flags:
+
+- `--personal-only` — you picked **Personal Microsoft accounts only** in step 3
+  of the walkthrough; writes `OUTLOOK_QUERY_TENANT_ID=consumers` to match. The
+  tenant value is always derived from your audience choice, so the
+  `AADSTS9002331` mismatch cannot happen on this path.
+- `--client-id <id>` — skip the prompt (non-interactive / agent use).
+- `--no-verify` — skip the verification sign-in; run `outlook-query auth` later.
+
+Env can also live in your shell or an MCP `env` block instead of `.env` — the
+values are always printed for copy-paste. The CLI auto-loads `.env` from cwd
+via Node's built-in `process.loadEnvFile()`. The MCP server does too, but
+Claude Code launches it from its own cwd — set env via `.mcp.json` `env` block
+instead (see below).
+
+### Manual setup (if the guided flow fails)
+
+The step numbers below match the walkthrough and its error messages.
 
 1. <https://entra.microsoft.com> → Identity → Applications → App registrations → **New registration**.
 2. Name: anything (e.g. `outlook-query`).
-3. Supported account types: **Personal Microsoft accounts only** (or *Accounts in any org + personal* if you have both).
-4. Redirect URI: leave blank (device code flow needs none).
-5. Create.
-6. On the new app's **Overview** page, copy the **Application (client) ID**.
-7. **Authentication** → **Allow public client flows** → **Yes** → Save.
-8. **API permissions** → Add → Microsoft Graph → Delegated permissions → check `Mail.Read` and `offline_access` → Add. Click **Grant admin consent** (if available) or accept consent on first run.
+3. Supported account types: **Accounts in any org + personal** (default), or **Personal Microsoft accounts only** (then use `--personal-only` / `OUTLOOK_QUERY_TENANT_ID=consumers`).
+4. Redirect URI: leave blank (device code flow needs none). Register.
+5. On the new app's **Overview** page, copy the **Application (client) ID**.
+6. **Authentication** → **Allow public client flows** → **Yes** → Save.
+7. **API permissions** → Add → Microsoft Graph → Delegated permissions → check `Mail.Read` and `offline_access` → Add. Personal accounts have no admin consent — you accept the consent prompt on first sign-in. (Work/school tenants can optionally click **Grant admin consent**.)
 
-### 3. Configure env
-
-Create `.env` in the project root (gitignored), or export in your shell:
+Then create `.env` in the project root (gitignored), or export in your shell:
 
 ```
 OUTLOOK_QUERY_CLIENT_ID=<paste app id>
@@ -36,9 +67,12 @@ OUTLOOK_QUERY_CLIENT_ID=<paste app id>
 OUTLOOK_QUERY_TENANT_ID=common
 ```
 
-The CLI auto-loads `.env` from cwd via Node's built-in `process.loadEnvFile()`. The MCP server does too, but Claude Code launches it from its own cwd — set env via `.mcp.json` `env` block instead (see below).
+**If you chose "Personal Microsoft accounts only" in step 3, you must set
+`OUTLOOK_QUERY_TENANT_ID=consumers`.** Such apps reject the default `common`
+authority with `AADSTS9002331: Application is configured for use by Microsoft
+Account users only. Please use the /consumers endpoint`.
 
-### 4. First-run auth
+Finally authenticate:
 
 ```
 pnpm exec outlook-query auth
@@ -57,6 +91,8 @@ outlook-query folders
 ```
 
 Flags: `-q/--query`, `--from`, `--to`, `--subject`, `--body`, `--since`, `--until`, `--has-attachment`, `--unread` / `--read`, `--folder`, `--importance`, `--inference-classification` (`focused`/`other`), `--top`, `--json`. Dates: ISO (`2026-05-01`) or relative (`-7d`, `-2w`, `-3h`, `-30m`).
+
+`--inference-classification` needs a `--since`/`--until` alongside it: results are sorted by `receivedDateTime`, and Graph rejects an unbounded inference filter combined with that sort (400 `InefficientFilter`). Same applies to the `list_emails_brief` MCP tool; `count_emails` doesn't sort and is exempt. Omitting the bound raises an error that says so — the raw Graph 400 names neither the cause nor the fix.
 
 ## MCP (Claude Code)
 
@@ -78,6 +114,29 @@ After `pnpm build`, register in your `.mcp.json` or `~/.claude/mcp_servers.json`
 
 Tools exposed: `search_emails`, `get_email`, `get_conversation`, `count_emails`, `list_emails_brief`, `list_folders`. Same schema as the CLI for the search filter.
 
+## Troubleshooting
+
+**`AADSTS9002331` during auth** — your app registration is "Personal Microsoft
+accounts only" but the tenant is `common`. Set `OUTLOOK_QUERY_TENANT_ID=consumers`
+(or re-run `outlook-query setup --personal-only`, which derives it for you).
+
+**MCP tools don't show up in the client** — fully quit and relaunch the host
+(Claude Desktop in particular does not hot-reload config), then check the host's
+MCP logs. To smoke-test the server directly:
+
+```
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"x","version":"0"}}}' | node dist/mcp.js
+```
+
+A JSON response should print within a few seconds.
+
+**`OUTLOOK_QUERY_CLIENT_ID env var not set` at tool-call time** — the host's
+working directory doesn't contain your `.env`. Pass the variable via the MCP
+config's `env` block, or `cd` into the project dir in the launch command.
+
+**Token expired / 401 from Graph** — re-run `pnpm exec outlook-query auth`
+(silent refresh usually works; falls back to a device-code prompt).
+
 ## Development
 
 ```
@@ -86,7 +145,26 @@ pnpm test:watch
 pnpm typecheck
 pnpm fix          # biome check --write (lint + format + organize imports)
 pnpm check        # fix + typecheck + test (full local CI)
+pnpm smoke        # live Graph smoke test (real mailbox, read-only)
 ```
+
+### Smoke test
+
+`pnpm check` only proves the code agrees with its own fixtures. It cannot catch
+Graph returning a shape our schemas reject — e.g. a `$select` that stops
+requesting a field a Zod schema still marks required, which takes a tool down
+completely while the suite stays green.
+
+`pnpm smoke` calls every exposed operation against the real mailbox and parses
+each response through its declared result schema (`SearchResultSchema`,
+`FullMessageSchema`, …). Requires `OUTLOOK_QUERY_CLIENT_ID` and a cached token;
+read-only; exits non-zero on any failure. Cases that need data the mailbox
+doesn't have report `SKIP` rather than passing silently.
+
+Known Graph limitation it encodes: `inference_classification` combined with
+`$orderby receivedDateTime desc` returns **400 InefficientFilter** unless the
+filter also bounds `receivedDateTime` — so pass `--since`/`--until` alongside
+`--inference-classification`.
 
 ## Layout
 

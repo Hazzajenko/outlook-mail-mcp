@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { ParsedDateInput } from "../../src/core/date-input.ts";
+import { GraphHttpError } from "../../src/core/graph-client.ts";
 import type {
   CountParams,
   FilterParams,
@@ -184,6 +186,66 @@ describe("getEmail", () => {
     await getEmail(fake, "AAMkADYzAA");
 
     expect(fake.calls[0]?.query?.get("$select")).toContain("internetMessageHeaders");
+  });
+
+  describe("header trimming", () => {
+    const noisy = {
+      ...(messageFixture as Record<string, unknown>),
+      internetMessageHeaders: [
+        { name: "Authentication-Results", value: "spf=pass" },
+        { name: "Return-Path", value: "<bounces@example.com>" },
+        { name: "reply-to", value: "<human@example.com>" },
+        { name: "List-Unsubscribe", value: "<https://example.com/u>" },
+        { name: "X-Microsoft-Antispam-Message-Info", value: "x".repeat(2000) },
+        { name: "DKIM-Signature", value: "v=1; a=rsa-sha256; ..." },
+        { name: "X-MS-Exchange-Organization-SCL", value: "1" },
+      ],
+    };
+
+    it("keeps only the notable headers by default", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      const result = await getEmail(fake, "AAMkADYzAA");
+
+      expect(result.internet_message_headers.map((h) => h.name)).toEqual([
+        "Authentication-Results",
+        "Return-Path",
+        "reply-to",
+        "List-Unsubscribe",
+      ]);
+    });
+
+    it("matches header names case-insensitively (senders vary the casing)", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      const result = await getEmail(fake, "AAMkADYzAA");
+
+      expect(result.internet_message_headers).toContainEqual({
+        name: "reply-to",
+        value: "<human@example.com>",
+      });
+    });
+
+    it("returns every header when include_all_headers is set", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      const result = await getEmail(fake, "AAMkADYzAA", { include_all_headers: true });
+
+      expect(result.internet_message_headers).toHaveLength(7);
+    });
+
+    it("still requests them via $select — Graph cannot select a subset", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      await getEmail(fake, "AAMkADYzAA");
+
+      expect(fake.calls[0]?.query?.get("$select")).toContain("internetMessageHeaders");
+    });
+
+    it("leaves the two headers the CLI renders intact", async () => {
+      const fake = new FakeGraphClient().enqueue(noisy);
+      const result = await getEmail(fake, "AAMkADYzAA");
+
+      const names = result.internet_message_headers.map((h) => h.name);
+      expect(names).toContain("Authentication-Results");
+      expect(names).toContain("Return-Path");
+    });
   });
 
   it('sends Prefer: outlook.body-content-type="text" by default', async () => {
@@ -476,5 +538,89 @@ describe("listEmailsBrief", () => {
     const result = await listEmailsBrief(fake, briefP());
 
     expect(result.lines).toContain("| hello world");
+  });
+});
+
+describe("InefficientFilter translation", () => {
+  const inefficient = () =>
+    new GraphHttpError(
+      400,
+      "Bad Request",
+      '{"error":{"code":"InefficientFilter","message":"The restriction or sort order is too complex for this operation."}}',
+    );
+
+  const bound = (): ParsedDateInput => ({
+    date: new Date("2026-05-01T00:00:00Z"),
+    dateOnly: false,
+  });
+
+  it("explains the missing date bound on search", async () => {
+    const fake = new FakeGraphClient().enqueueError(inefficient());
+
+    await expect(search(fake, params({ inference_classification: "focused" }))).rejects.toThrow(
+      /Pass since and\/or until/,
+    );
+  });
+
+  it("explains the missing date bound on listEmailsBrief", async () => {
+    const fake = new FakeGraphClient().enqueueError(inefficient());
+
+    await expect(
+      listEmailsBrief(fake, briefP({ inference_classification: "other" })),
+    ).rejects.toThrow(/Pass since and\/or until/);
+  });
+
+  it("names the offending value and keeps the original error as cause", async () => {
+    const original = inefficient();
+    const fake = new FakeGraphClient().enqueueError(original);
+
+    const err = await search(fake, params({ inference_classification: "focused" })).catch(
+      (e: unknown) => e,
+    );
+
+    expect((err as Error).message).toContain("inference_classification='focused'");
+    expect((err as Error).cause).toBe(original);
+  });
+
+  // The hint would be wrong here — a bound is already present, so the 400 has
+  // some other cause and must not be papered over with misleading advice.
+  it("rethrows untouched when a date bound is already present", async () => {
+    const original = inefficient();
+    const fake = new FakeGraphClient().enqueueError(original);
+
+    const err = await search(
+      fake,
+      params({ inference_classification: "focused", since: bound() }),
+    ).catch((e: unknown) => e);
+
+    expect(err).toBe(original);
+  });
+
+  it("rethrows untouched when inference_classification is absent", async () => {
+    const original = inefficient();
+    const fake = new FakeGraphClient().enqueueError(original);
+
+    const err = await search(fake, params()).catch((e: unknown) => e);
+
+    expect(err).toBe(original);
+  });
+
+  it("rethrows unrelated Graph errors untouched", async () => {
+    const original = new GraphHttpError(429, "Too Many Requests", '{"error":{"code":"Throttled"}}');
+    const fake = new FakeGraphClient().enqueueError(original);
+
+    const err = await search(fake, params({ inference_classification: "focused" })).catch(
+      (e: unknown) => e,
+    );
+
+    expect(err).toBe(original);
+  });
+
+  it("leaves countEmails unwrapped — it does not sort, so it needs no bound", async () => {
+    const fake = new FakeGraphClient().enqueue({ "@odata.count": 7 });
+
+    const result = await countEmails(fake, countP({ inference_classification: "focused" }));
+
+    expect(result.count).toBe(7);
   });
 });
