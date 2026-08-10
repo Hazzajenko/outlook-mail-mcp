@@ -9,6 +9,20 @@ export interface AuthConfig {
   clientId: string;
   tenantId?: string;
   cachePath?: string;
+  /**
+   * When false, never start the device-code flow: a missing or unrefreshable
+   * cached token throws NotAuthenticatedError instead. The MCP server uses
+   * this — a device-code prompt inside a tool call goes to stderr, which the
+   * user never sees. Defaults to true (CLI behavior).
+   */
+  interactive?: boolean;
+}
+
+export class NotAuthenticatedError extends Error {
+  constructor() {
+    super("Not authenticated. Run `npx outlook-query auth` in a terminal, then retry.");
+    this.name = "NotAuthenticatedError";
+  }
 }
 
 export interface TokenProvider {
@@ -61,6 +75,10 @@ export function createTokenProvider(config: AuthConfig): TokenProvider {
         } catch {
           // silent failed; fall through to interactive
         }
+      }
+
+      if (config.interactive === false) {
+        throw new NotAuthenticatedError();
       }
 
       const result = await pca.acquireTokenByDeviceCode({
