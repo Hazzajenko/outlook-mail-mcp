@@ -24,9 +24,10 @@ export function resolveAuthConfig(
       "OUTLOOK_QUERY_CLIENT_ID is not set. Run `npx outlook-query setup` in a terminal for a guided walkthrough, or set the env var to your Azure app registration's client ID.",
     );
   }
+  // Empty string would produce authority ".../" — treat like unset (→ common).
   const tenantId = env.OUTLOOK_QUERY_TENANT_ID;
   return {
     clientId,
-    ...(tenantId !== undefined ? { tenantId } : {}),
+    ...(tenantId ? { tenantId } : {}),
   };
 }

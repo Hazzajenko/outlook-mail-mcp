@@ -18,6 +18,14 @@ describe("resolveAuthConfig", () => {
     expect("tenantId" in config).toBe(false);
   });
 
+  it("treats an empty tenant ID as unset", () => {
+    const config = resolveAuthConfig({
+      OUTLOOK_QUERY_CLIENT_ID: "client-123",
+      OUTLOOK_QUERY_TENANT_ID: "",
+    });
+    expect("tenantId" in config).toBe(false);
+  });
+
   it("resolves tenant ID when set", () => {
     const config = resolveAuthConfig({
       OUTLOOK_QUERY_CLIENT_ID: "client-123",
