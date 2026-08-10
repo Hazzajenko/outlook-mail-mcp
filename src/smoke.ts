@@ -23,6 +23,7 @@ try {
 
 import { z } from "zod";
 import { createTokenProvider } from "./core/auth.ts";
+import { resolveAuthConfig } from "./core/config.ts";
 import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
 import {
@@ -86,16 +87,7 @@ function summarize(s: string): string {
 }
 
 function buildClient(): GraphClient {
-  const clientId = process.env.OUTLOOK_QUERY_CLIENT_ID;
-  if (!clientId) {
-    throw new Error(
-      "OUTLOOK_QUERY_CLIENT_ID env var not set. Register an Azure app and export the client ID.",
-    );
-  }
-  const tenantId = process.env.OUTLOOK_QUERY_TENANT_ID;
-  const provider = createTokenProvider(
-    tenantId !== undefined ? { clientId, tenantId } : { clientId },
-  );
+  const provider = createTokenProvider(resolveAuthConfig());
   return new HttpGraphClient({ getToken: () => provider.getToken() });
 }
 

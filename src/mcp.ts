@@ -9,6 +9,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { createTokenProvider } from "./core/auth.ts";
+import { resolveAuthConfig } from "./core/config.ts";
 import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
 import { CountParamsSchema, ListBriefParamsSchema, SearchParamsSchema } from "./core/schemas.ts";
@@ -24,14 +25,10 @@ import {
 let cachedClient: GraphClient | undefined;
 function client(): GraphClient {
   if (cachedClient !== undefined) return cachedClient;
-  const clientId = process.env.OUTLOOK_QUERY_CLIENT_ID;
-  if (!clientId) {
-    throw new Error("OUTLOOK_QUERY_CLIENT_ID env var not set.");
-  }
-  const tenantId = process.env.OUTLOOK_QUERY_TENANT_ID;
-  const tokenProvider = createTokenProvider(
-    tenantId !== undefined ? { clientId, tenantId } : { clientId },
-  );
+  // interactive: false — a device-code prompt inside an MCP tool call is
+  // invisible to the user (stderr goes to the client's logs) and hangs the
+  // call; fail fast and direct them to `outlook-query auth` instead.
+  const tokenProvider = createTokenProvider({ ...resolveAuthConfig(), interactive: false });
   cachedClient = new HttpGraphClient({ getToken: () => tokenProvider.getToken() });
   return cachedClient;
 }
