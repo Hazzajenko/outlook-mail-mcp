@@ -12,6 +12,7 @@ import { Command } from "commander";
 import { z } from "zod";
 import { renderFolders, renderFullMessage, renderSearchResults } from "./cli-render.ts";
 import { createTokenProvider, type TokenProvider } from "./core/auth.ts";
+import { resolveAuthConfig } from "./core/config.ts";
 import { mergeEnvContent } from "./core/env-file.ts";
 import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
@@ -45,14 +46,7 @@ const SearchOptsSchema = z.object({
 type SearchOpts = z.infer<typeof SearchOptsSchema>;
 
 function buildTokenProvider(): TokenProvider {
-  const clientId = process.env.OUTLOOK_QUERY_CLIENT_ID;
-  if (!clientId) {
-    throw new Error(
-      "OUTLOOK_QUERY_CLIENT_ID env var not set. Register an Azure app and export the client ID.",
-    );
-  }
-  const tenantId = process.env.OUTLOOK_QUERY_TENANT_ID;
-  return createTokenProvider(tenantId !== undefined ? { clientId, tenantId } : { clientId });
+  return createTokenProvider(resolveAuthConfig());
 }
 
 function buildClient(): GraphClient {

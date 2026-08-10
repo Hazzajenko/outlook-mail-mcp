@@ -1,0 +1,33 @@
+# Publishes to npm when release-please's GitHub Release is created.
+# Auth is npm Trusted Publishing (OIDC) — no token secret exists. This job
+# fails until the package name is settled, the first manual publish is done,
+# and the trusted publisher is registered on npmjs.com; that is expected.
+name: publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      # Trusted Publishing (OIDC) needs npm >= 11.5; Node 22 bundles npm 10.
+      - run: npm install -g npm@11
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: npm publish --provenance --access public
