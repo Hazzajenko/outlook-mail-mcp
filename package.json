@@ -1,9 +1,12 @@
 {
   "name": "outlook-query",
   "version": "0.0.0",
-  "private": true,
   "description": "Query personal Outlook via Microsoft Graph. CLI + MCP server for Claude.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hazzajenko/OutlookQuery.git"
+  },
   "type": "module",
   "engines": {
     "node": ">=22"
