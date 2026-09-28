@@ -165,6 +165,19 @@ Known Graph limitation it encodes: `inference_classification` combined with
 filter also bounds `receivedDateTime`. Pass `--since`/`--until` alongside
 `--inference-classification`.
 
+## Releasing
+
+Releases use [release-please](https://github.com/googleapis/release-please).
+Each push to main updates one open release PR. That PR bumps the version in
+`package.json` and adds the new commits to `CHANGELOG.md`. Commit subjects set
+the bump: `fix:` gives a patch, `feat:` gives a minor, and a breaking change
+gives a minor while the version is below 1.0.
+
+To release, merge the release PR. release-please then tags `vX.Y.Z`, creates
+the GitHub Release, and the `publish` job in
+`.github/workflows/release-please.yml` publishes to npm with Trusted
+Publishing.
+
 ## Layout
 
 ```
