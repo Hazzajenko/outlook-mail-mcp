@@ -24,6 +24,7 @@ import {
   isValidClientId,
   translateVerifyError,
 } from "./core/setup.ts";
+import { VERSION } from "./version.ts";
 
 const SearchOptsSchema = z.object({
   query: z.string().optional(),
@@ -82,7 +83,7 @@ const program = new Command();
 program
   .name("outlook-query")
   .description("Query personal Outlook via Microsoft Graph")
-  .version("0.0.0");
+  .version(VERSION);
 
 program
   .command("search")
