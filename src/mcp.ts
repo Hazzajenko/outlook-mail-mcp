@@ -21,6 +21,7 @@ import {
   listFolders,
   search,
 } from "./core/search.ts";
+import { VERSION } from "./version.ts";
 
 let cachedClient: GraphClient | undefined;
 function client(): GraphClient {
@@ -35,7 +36,7 @@ function client(): GraphClient {
 
 const server = new McpServer({
   name: "outlook-query",
-  version: "0.0.0",
+  version: VERSION,
 });
 
 server.registerTool(
