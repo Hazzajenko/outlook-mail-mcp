@@ -2,7 +2,7 @@
 
 Status: superseded by ADR-0002
 
-The `outlook-query setup` subcommand automates the Entra app registration that
+The `outlook-mail setup` subcommand automates the Entra app registration that
 users would otherwise do by hand in the portal. To call Graph
 (`POST /applications`) before our own app exists, it must authenticate as an
 already-registered client — a chicken-and-egg problem. We resolve it by doing a
@@ -26,7 +26,7 @@ the delegated scope `Application.ReadWrite.All` for the setup session only.
 ## Consequences
 
 - The consent screen shows "Microsoft Graph Command Line Tools", not
-  "outlook-query". The README warns about this so users are not spooked.
+  "outlook-mail". The README warns about this so users are not spooked.
 - The `Application.ReadWrite.All` token is held **in memory only** and is never
   written to the msal cache file. The on-disk cache holds only the
   `Mail.Read` + `offline_access` token from our own app, so the scope

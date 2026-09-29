@@ -17,12 +17,12 @@ export function buildEnvUpdates(
   personalOnly: boolean,
 ): Record<string, string | null> {
   return {
-    OUTLOOK_QUERY_CLIENT_ID: clientId,
+    OUTLOOK_MAIL_CLIENT_ID: clientId,
     // Tenant is derived from the audience choice, never set independently —
     // this makes the AADSTS9002331 audience/tenant mismatch unrepresentable.
     // Default mode must also *remove* a stale consumers value left by an
     // earlier --personal-only run (null deletes the key).
-    OUTLOOK_QUERY_TENANT_ID: personalOnly ? "consumers" : null,
+    OUTLOOK_MAIL_TENANT_ID: personalOnly ? "consumers" : null,
   };
 }
 
@@ -34,7 +34,7 @@ export function buildSetupSteps(personalOnly: boolean): string {
     "Register the app in the Entra portal (Microsoft blocks doing this automatically for personal accounts):",
     "",
     "  1. Open https://entra.microsoft.com -> Identity -> Applications -> App registrations -> New registration.",
-    "  2. Name: anything (e.g. outlook-query).",
+    "  2. Name: anything (e.g. outlook-mail).",
     `  3. Supported account types: choose "${audience}".`,
     "  4. Redirect URI: leave blank. Click Register.",
     "  5. On the Overview page, copy the Application (client) ID.",
@@ -45,7 +45,7 @@ export function buildSetupSteps(personalOnly: boolean): string {
 }
 
 const MANUAL_FALLBACK =
-  'See the "Manual setup" section of the README, then re-run outlook-query setup.';
+  'See the "Manual setup" section of the README, then re-run outlook-mail setup.';
 
 /**
  * Maps a device-code verification failure to "go back and fix step N"

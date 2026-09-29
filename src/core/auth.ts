@@ -20,7 +20,9 @@ export interface AuthConfig {
 
 export class NotAuthenticatedError extends Error {
   constructor() {
-    super("Not authenticated. Run `npx outlook-query auth` in a terminal, then retry.");
+    super(
+      "Not authenticated. Run `npx -p @hazzajenko/outlook-mail-mcp outlook-mail auth` in a terminal, then retry.",
+    );
     this.name = "NotAuthenticatedError";
   }
 }
@@ -31,7 +33,7 @@ export interface TokenProvider {
 
 export function defaultCachePath(): string {
   const xdg = process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config");
-  return join(xdg, "outlook-query", "msal-cache.json");
+  return join(xdg, "outlook-mail", "msal-cache.json");
 }
 
 export function makeFileCachePlugin(path: string): ICachePlugin {

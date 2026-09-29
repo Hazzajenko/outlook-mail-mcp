@@ -12,7 +12,7 @@
  * mailbox and parses each response through the *declared result schema*, so any
  * drift between what Graph sends and what we promise fails loudly.
  *
- * Read-only. Requires OUTLOOK_QUERY_CLIENT_ID and a cached token (`outlook-query
+ * Read-only. Requires OUTLOOK_MAIL_CLIENT_ID and a cached token (`outlook-mail
  * auth`). Never runs as part of `pnpm check` — invoke it deliberately.
  */
 try {
@@ -93,7 +93,7 @@ function buildClient(): GraphClient {
 
 async function main(): Promise<void> {
   const client = buildClient();
-  console.log("outlook-query smoke — live Graph, read-only\n");
+  console.log("outlook-mail smoke — live Graph, read-only\n");
 
   // A message id + conversation id harvested from the first search that returns
   // anything, so the single-message cases below have something real to fetch.

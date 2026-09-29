@@ -23,14 +23,14 @@ describe("isValidClientId", () => {
 describe("buildEnvUpdates", () => {
   it("writes the client ID and deletes any stale tenant by default", () => {
     expect(buildEnvUpdates("abc", false)).toEqual({
-      OUTLOOK_QUERY_CLIENT_ID: "abc",
-      OUTLOOK_QUERY_TENANT_ID: null,
+      OUTLOOK_MAIL_CLIENT_ID: "abc",
+      OUTLOOK_MAIL_TENANT_ID: null,
     });
   });
   it("derives consumers tenant in personal-only mode", () => {
     expect(buildEnvUpdates("abc", true)).toEqual({
-      OUTLOOK_QUERY_CLIENT_ID: "abc",
-      OUTLOOK_QUERY_TENANT_ID: "consumers",
+      OUTLOOK_MAIL_CLIENT_ID: "abc",
+      OUTLOOK_MAIL_TENANT_ID: "consumers",
     });
   });
 });
