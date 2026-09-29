@@ -27,7 +27,7 @@ const GraphMessageSchema = z.object({
   conversationId: z.string(),
   parentFolderId: z.string().optional(),
   isRead: z.boolean(),
-  // Only requested by FULL_SELECT / CONVERSATION_SELECT — absent on lean search results.
+  // Only requested by FULL_SELECT — absent on lean search results.
   webLink: z.string().optional(),
   body: z
     .object({
