@@ -1,6 +1,6 @@
 {
   "name": "@hazzajenko/outlook-mail-mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Query personal Outlook via Microsoft Graph. CLI + MCP server for Claude.",
   "license": "MIT",
   "repository": {
