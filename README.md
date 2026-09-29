@@ -10,15 +10,22 @@ TypeScript / Node 22+ / pnpm. Auth via `@azure/msal-node` with device code flow,
 
 ### 1. Install
 
+Install the package globally to get the `outlook-mail` CLI:
+
 ```
-pnpm install
-pnpm build
+npm install -g @hazzajenko/outlook-mail-mcp
 ```
+
+To run the CLI with no install, put `npx -p @hazzajenko/outlook-mail-mcp`
+before each command. For example:
+`npx -p @hazzajenko/outlook-mail-mcp outlook-mail setup`. The MCP server
+needs no install. Your MCP host starts it with `npx`, as shown in the MCP
+section below.
 
 ### 2. Run guided setup
 
 ```
-pnpm exec outlook-mail setup
+outlook-mail setup
 ```
 
 The command walks you through registering the Entra app. Microsoft does not
@@ -43,8 +50,8 @@ Flags:
 Env can also live in your shell or an MCP `env` block instead of `.env`. The
 values are always printed for copy-paste. The CLI auto-loads `.env` from cwd
 via Node's built-in `process.loadEnvFile()`. The MCP server does too, but
-Claude Code launches it from its own cwd. Set env via the `.mcp.json` `env`
-block instead, as shown in the MCP section below.
+the MCP host starts it from its own cwd. Put the values in the `env` block of
+your MCP config, as shown in the MCP section below.
 
 ### Manual setup
 
@@ -58,7 +65,7 @@ Use this if the guided flow fails. The step numbers below match the walkthrough 
 6. **Authentication** → **Allow public client flows** → **Yes** → Save.
 7. **API permissions** → Add → Microsoft Graph → Delegated permissions → check `Mail.Read` and `offline_access` → Add. Personal accounts have no admin consent. You accept the consent prompt on first sign-in. Work or school tenants can click **Grant admin consent**.
 
-Then create `.env` in the project root, or export the values in your shell. Git ignores `.env`. Example:
+Then create `.env` in the directory where you run the CLI, or export the values in your shell. Example:
 
 ```
 OUTLOOK_MAIL_CLIENT_ID=<paste app id>
@@ -74,7 +81,7 @@ Account users only. Please use the /consumers endpoint`.
 Finally authenticate:
 
 ```
-pnpm exec outlook-mail auth
+outlook-mail auth
 ```
 
 Opens a device-code message in stderr. Visit the URL, enter the code, sign in. Token cached at `~/.config/outlook-mail/msal-cache.json` (mode 0600). Subsequent runs are silent.
@@ -93,16 +100,25 @@ Flags: `-q/--query`, `--from`, `--to`, `--subject`, `--body`, `--since`, `--unti
 
 `--inference-classification` needs a `--since`/`--until` alongside it. Results are sorted by `receivedDateTime`, and Graph rejects an unbounded inference filter combined with that sort (400 `InefficientFilter`). Same applies to the `list_emails_brief` MCP tool. `count_emails` doesn't sort and is exempt. Omitting the bound raises an error that says so. The raw Graph 400 names neither the cause nor the fix.
 
-## MCP (Claude Code)
+## MCP
 
-After `pnpm build`, register in your `.mcp.json` or `~/.claude/mcp_servers.json`:
+Run `outlook-mail setup` first. The server reads the token that setup caches,
+and it cannot show a device-code prompt itself.
+
+For Claude Code:
+
+```
+claude mcp add outlook-mail --env OUTLOOK_MAIL_CLIENT_ID=<your-client-id> -- npx -y @hazzajenko/outlook-mail-mcp
+```
+
+For other hosts, such as Claude Desktop, add this to the MCP config:
 
 ```json
 {
   "mcpServers": {
     "outlook-mail": {
-      "command": "node",
-      "args": ["/abs/path/to/outlook-mail-mcp/dist/mcp.js"],
+      "command": "npx",
+      "args": ["-y", "@hazzajenko/outlook-mail-mcp"],
       "env": {
         "OUTLOOK_MAIL_CLIENT_ID": "<your-client-id>"
       }
@@ -110,6 +126,10 @@ After `pnpm build`, register in your `.mcp.json` or `~/.claude/mcp_servers.json`
   }
 }
 ```
+
+If you used `--personal-only`, also set `OUTLOOK_MAIL_TENANT_ID` to
+`consumers` in the `env` block. On Windows, some hosts cannot start `npx`
+directly. Use `"command": "cmd"` with `"args": ["/c", "npx", "-y", "@hazzajenko/outlook-mail-mcp"]`.
 
 Tools exposed: `search_emails`, `get_email`, `get_conversation`, `count_emails`, `list_emails_brief`, `list_folders`. Same schema as the CLI for the search filter.
 
@@ -124,19 +144,31 @@ then check the host's MCP logs. Claude Desktop does not hot-reload config. To
 smoke-test the server directly, run:
 
 ```
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"x","version":"0"}}}' | node dist/mcp.js
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"x","version":"0"}}}' | npx -y @hazzajenko/outlook-mail-mcp
 ```
 
 A JSON response should print within a few seconds.
 
 **`OUTLOOK_MAIL_CLIENT_ID env var not set` at tool-call time.** The host's
 working directory doesn't contain your `.env`. Pass the variable via the MCP
-config's `env` block, or `cd` into the project dir in the launch command.
+config's `env` block.
 
-**Token expired or 401 from Graph.** Re-run `pnpm exec outlook-mail auth`.
+**Token expired or 401 from Graph.** Re-run `outlook-mail auth`.
 Silent refresh usually works. If it fails, you get a device-code prompt.
 
 ## Development
+
+To run from source, clone the repo and build it:
+
+```
+pnpm install
+pnpm build
+pnpm exec outlook-mail setup
+```
+
+Point the MCP config at the build with `"command": "node"` and
+`"args": ["/abs/path/to/outlook-mail-mcp/dist/mcp.js"]`. Run `pnpm build`
+after each change so the host loads the new code.
 
 ```
 pnpm test         # vitest run
