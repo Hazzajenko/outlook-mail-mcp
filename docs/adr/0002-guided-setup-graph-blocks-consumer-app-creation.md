@@ -2,7 +2,7 @@
 
 Status: accepted
 
-We wanted `outlook-query setup` to create the Entra app registration
+We wanted `outlook-mail setup` to create the Entra app registration
 automatically (ADR-0001). A live spike (issue #2, results on issue #1) proved
 this impossible for the target audience: Microsoft Graph refuses
 `POST /applications` for personal Microsoft accounts with
@@ -15,7 +15,7 @@ Graph docs' "Delegated (personal Microsoft account): supported" row for this
 API did not match observed behaviour in August 2026. The Entra portal is the
 only registration path for consumer accounts.
 
-Decision: `outlook-query setup` is a **guided, verified** flow instead. It
+Decision: `outlook-mail setup` is a **guided, verified** flow instead. It
 walks the user through the portal steps, accepts the resulting client ID,
 writes `.env` with a tenant value derived from the chosen audience (making the
 `AADSTS9002331` mismatch unrepresentable), then verifies the registration by

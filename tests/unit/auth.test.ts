@@ -14,12 +14,12 @@ describe("defaultCachePath", () => {
 
   it("uses XDG_CONFIG_HOME when set", () => {
     process.env.XDG_CONFIG_HOME = "/custom/cfg";
-    expect(defaultCachePath()).toBe(join("/custom/cfg", "outlook-query", "msal-cache.json"));
+    expect(defaultCachePath()).toBe(join("/custom/cfg", "outlook-mail", "msal-cache.json"));
   });
 
   it("falls back to <homedir>/.config when XDG_CONFIG_HOME unset", () => {
     delete process.env.XDG_CONFIG_HOME;
-    expect(defaultCachePath()).toBe(join(homedir(), ".config", "outlook-query", "msal-cache.json"));
+    expect(defaultCachePath()).toBe(join(homedir(), ".config", "outlook-mail", "msal-cache.json"));
   });
 });
 
@@ -28,7 +28,7 @@ describe("makeFileCachePlugin", () => {
   let cachePath: string;
 
   beforeEach(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), "outlook-query-"));
+    tmpDir = await mkdtemp(join(tmpdir(), "outlook-mail-"));
     cachePath = join(tmpDir, "nested", "cache.json");
   });
 

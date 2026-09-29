@@ -30,7 +30,7 @@ describe("createTokenProvider (non-interactive)", () => {
   it("rejects with NotAuthenticatedError when no account is cached", async () => {
     mocks.getAllAccounts.mockResolvedValue([]);
     await expect(provider().getToken()).rejects.toThrowError(NotAuthenticatedError);
-    await expect(provider().getToken()).rejects.toThrowError(/outlook-query auth/);
+    await expect(provider().getToken()).rejects.toThrowError(/outlook-mail auth/);
     expect(mocks.acquireTokenByDeviceCode).not.toHaveBeenCalled();
   });
 

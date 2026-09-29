@@ -1,11 +1,11 @@
 {
-  "name": "outlook-query",
+  "name": "@hazzajenko/outlook-mail-mcp",
   "version": "0.1.0",
   "description": "Query personal Outlook via Microsoft Graph. CLI + MCP server for Claude.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Hazzajenko/OutlookQuery.git"
+    "url": "git+https://github.com/Hazzajenko/outlook-mail-mcp.git"
   },
   "type": "module",
   "engines": {
@@ -13,8 +13,8 @@
   },
   "packageManager": "pnpm@11.0.9",
   "bin": {
-    "outlook-query": "./dist/cli.js",
-    "outlook-query-mcp": "./dist/mcp.js"
+    "outlook-mail": "./dist/cli.js",
+    "outlook-mail-mcp": "./dist/mcp.js"
   },
   "files": [
     "dist"

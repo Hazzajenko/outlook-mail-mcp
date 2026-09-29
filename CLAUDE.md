@@ -42,7 +42,7 @@ Scopes are `Mail.Read` + `offline_access` only — keep it that way. The `auth` 
 
 ## Env loading
 
-Both entry points (`cli.ts`, `mcp.ts`) call `process.loadEnvFile()` at startup (Node 22 built-in). `.env` from cwd is loaded silently if present. Required: `OUTLOOK_QUERY_CLIENT_ID`. Optional: `OUTLOOK_QUERY_TENANT_ID` (defaults to `common`).
+Both entry points (`cli.ts`, `mcp.ts`) call `process.loadEnvFile()` at startup (Node 22 built-in). `.env` from cwd is loaded silently if present. Required: `OUTLOOK_MAIL_CLIENT_ID`. Optional: `OUTLOOK_MAIL_TENANT_ID` (defaults to `common`).
 
 ## Agent workflow
 

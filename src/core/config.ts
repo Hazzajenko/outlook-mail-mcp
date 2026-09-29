@@ -18,14 +18,14 @@ export interface ResolvedAuthConfig {
 export function resolveAuthConfig(
   env: Record<string, string | undefined> = process.env,
 ): ResolvedAuthConfig {
-  const clientId = env.OUTLOOK_QUERY_CLIENT_ID;
+  const clientId = env.OUTLOOK_MAIL_CLIENT_ID;
   if (!clientId) {
     throw new ConfigError(
-      "OUTLOOK_QUERY_CLIENT_ID is not set. Run `npx outlook-query setup` in a terminal for a guided walkthrough, or set the env var to your Azure app registration's client ID.",
+      "OUTLOOK_MAIL_CLIENT_ID is not set. Run `npx -p @hazzajenko/outlook-mail-mcp outlook-mail setup` in a terminal for a guided walkthrough, or set the env var to your Azure app registration's client ID.",
     );
   }
   // Empty string would produce authority ".../" — treat like unset (→ common).
-  const tenantId = env.OUTLOOK_QUERY_TENANT_ID;
+  const tenantId = env.OUTLOOK_MAIL_TENANT_ID;
   return {
     clientId,
     ...(tenantId ? { tenantId } : {}),

@@ -81,7 +81,7 @@ function optsToSearchParams(opts: SearchOpts): SearchParamsInput {
 const program = new Command();
 
 program
-  .name("outlook-query")
+  .name("outlook-mail")
   .description("Query personal Outlook via Microsoft Graph")
   .version(VERSION);
 
@@ -235,7 +235,7 @@ program
     }
 
     if (!opts.verify) {
-      process.stderr.write("Skipped verification (--no-verify). Run `outlook-query auth` later.\n");
+      process.stderr.write("Skipped verification (--no-verify). Run `outlook-mail auth` later.\n");
       return;
     }
     process.stderr.write("Verifying the registration via device-code sign-in…\n");

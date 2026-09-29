@@ -28,14 +28,14 @@ function client(): GraphClient {
   if (cachedClient !== undefined) return cachedClient;
   // interactive: false — a device-code prompt inside an MCP tool call is
   // invisible to the user (stderr goes to the client's logs) and hangs the
-  // call; fail fast and direct them to `outlook-query auth` instead.
+  // call; fail fast and direct them to `outlook-mail auth` instead.
   const tokenProvider = createTokenProvider({ ...resolveAuthConfig(), interactive: false });
   cachedClient = new HttpGraphClient({ getToken: () => tokenProvider.getToken() });
   return cachedClient;
 }
 
 const server = new McpServer({
-  name: "outlook-query",
+  name: "outlook-mail",
   version: VERSION,
 });
 

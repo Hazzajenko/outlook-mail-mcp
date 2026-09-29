@@ -1,4 +1,4 @@
-# outlook-query
+# outlook-mail-mcp
 
 Query personal Outlook via Microsoft Graph. CLI + MCP server, sharing one core. Read-only.
 
@@ -18,7 +18,7 @@ pnpm build
 ### 2. Run guided setup
 
 ```
-pnpm exec outlook-query setup
+pnpm exec outlook-mail setup
 ```
 
 The command walks you through registering the Entra app. Microsoft does not
@@ -34,11 +34,11 @@ If verification fails, the error tells you which portal step to revisit.
 Flags:
 
 - `--personal-only`: you picked **Personal Microsoft accounts only** in step 3
-  of the walkthrough. It writes `OUTLOOK_QUERY_TENANT_ID=consumers` to match. The
+  of the walkthrough. It writes `OUTLOOK_MAIL_TENANT_ID=consumers` to match. The
   tenant value is always derived from your audience choice, so the
   `AADSTS9002331` mismatch cannot happen on this path.
 - `--client-id <id>`: skip the prompt, for non-interactive or agent use.
-- `--no-verify`: skip the verification sign-in. Run `outlook-query auth` later.
+- `--no-verify`: skip the verification sign-in. Run `outlook-mail auth` later.
 
 Env can also live in your shell or an MCP `env` block instead of `.env`. The
 values are always printed for copy-paste. The CLI auto-loads `.env` from cwd
@@ -51,8 +51,8 @@ block instead, as shown in the MCP section below.
 Use this if the guided flow fails. The step numbers below match the walkthrough and its error messages.
 
 1. <https://entra.microsoft.com> → Identity → Applications → App registrations → **New registration**.
-2. Name: anything, for example `outlook-query`.
-3. Supported account types: **Accounts in any org + personal** (default), or **Personal Microsoft accounts only**. With the second, use `--personal-only` or `OUTLOOK_QUERY_TENANT_ID=consumers`.
+2. Name: anything, for example `outlook-mail`.
+3. Supported account types: **Accounts in any org + personal** (default), or **Personal Microsoft accounts only**. With the second, use `--personal-only` or `OUTLOOK_MAIL_TENANT_ID=consumers`.
 4. Redirect URI: leave blank. Device code flow needs none. Register.
 5. On the new app's **Overview** page, copy the **Application (client) ID**.
 6. **Authentication** → **Allow public client flows** → **Yes** → Save.
@@ -61,32 +61,32 @@ Use this if the guided flow fails. The step numbers below match the walkthrough 
 Then create `.env` in the project root, or export the values in your shell. Git ignores `.env`. Example:
 
 ```
-OUTLOOK_QUERY_CLIENT_ID=<paste app id>
+OUTLOOK_MAIL_CLIENT_ID=<paste app id>
 # Optional. Default 'common' (personal + work). Use 'consumers' to lock to personal.
-OUTLOOK_QUERY_TENANT_ID=common
+OUTLOOK_MAIL_TENANT_ID=common
 ```
 
 **If you chose "Personal Microsoft accounts only" in step 3, you must set
-`OUTLOOK_QUERY_TENANT_ID=consumers`.** Such apps reject the default `common`
+`OUTLOOK_MAIL_TENANT_ID=consumers`.** Such apps reject the default `common`
 authority with `AADSTS9002331: Application is configured for use by Microsoft
 Account users only. Please use the /consumers endpoint`.
 
 Finally authenticate:
 
 ```
-pnpm exec outlook-query auth
+pnpm exec outlook-mail auth
 ```
 
-Opens a device-code message in stderr. Visit the URL, enter the code, sign in. Token cached at `~/.config/outlook-query/msal-cache.json` (mode 0600). Subsequent runs are silent.
+Opens a device-code message in stderr. Visit the URL, enter the code, sign in. Token cached at `~/.config/outlook-mail/msal-cache.json` (mode 0600). Subsequent runs are silent.
 
 ## CLI
 
 ```
-outlook-query search --from example.com --since -30d
-outlook-query search -q "interview" --unread --top 100
-outlook-query search --folder Jobs --has-attachment --json
-outlook-query get <message-id>
-outlook-query folders
+outlook-mail search --from example.com --since -30d
+outlook-mail search -q "interview" --unread --top 100
+outlook-mail search --folder Jobs --has-attachment --json
+outlook-mail get <message-id>
+outlook-mail folders
 ```
 
 Flags: `-q/--query`, `--from`, `--to`, `--subject`, `--body`, `--since`, `--until`, `--has-attachment`, `--unread` / `--read`, `--folder`, `--importance`, `--inference-classification` (`focused`/`other`), `--top`, `--json`. Dates: ISO (`2026-05-01`) or relative (`-7d`, `-2w`, `-3h`, `-30m`).
@@ -100,11 +100,11 @@ After `pnpm build`, register in your `.mcp.json` or `~/.claude/mcp_servers.json`
 ```json
 {
   "mcpServers": {
-    "outlook-query": {
+    "outlook-mail": {
       "command": "node",
-      "args": ["/abs/path/to/outlook-query/dist/mcp.js"],
+      "args": ["/abs/path/to/outlook-mail-mcp/dist/mcp.js"],
       "env": {
-        "OUTLOOK_QUERY_CLIENT_ID": "<your-client-id>"
+        "OUTLOOK_MAIL_CLIENT_ID": "<your-client-id>"
       }
     }
   }
@@ -116,8 +116,8 @@ Tools exposed: `search_emails`, `get_email`, `get_conversation`, `count_emails`,
 ## Troubleshooting
 
 **`AADSTS9002331` during auth.** Your app registration is "Personal Microsoft
-accounts only" but the tenant is `common`. Set `OUTLOOK_QUERY_TENANT_ID=consumers`,
-or re-run `outlook-query setup --personal-only`, which derives it for you.
+accounts only" but the tenant is `common`. Set `OUTLOOK_MAIL_TENANT_ID=consumers`,
+or re-run `outlook-mail setup --personal-only`, which derives it for you.
 
 **MCP tools don't show up in the client.** Fully quit and relaunch the host,
 then check the host's MCP logs. Claude Desktop does not hot-reload config. To
@@ -129,11 +129,11 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 A JSON response should print within a few seconds.
 
-**`OUTLOOK_QUERY_CLIENT_ID env var not set` at tool-call time.** The host's
+**`OUTLOOK_MAIL_CLIENT_ID env var not set` at tool-call time.** The host's
 working directory doesn't contain your `.env`. Pass the variable via the MCP
 config's `env` block, or `cd` into the project dir in the launch command.
 
-**Token expired or 401 from Graph.** Re-run `pnpm exec outlook-query auth`.
+**Token expired or 401 from Graph.** Re-run `pnpm exec outlook-mail auth`.
 Silent refresh usually works. If it fails, you get a device-code prompt.
 
 ## Development
@@ -156,7 +156,7 @@ completely while the suite stays green.
 
 `pnpm smoke` calls every exposed operation against the real mailbox and parses
 each response through its declared result schema (`SearchResultSchema`,
-`FullMessageSchema`, …). It needs `OUTLOOK_QUERY_CLIENT_ID` and a cached token.
+`FullMessageSchema`, …). It needs `OUTLOOK_MAIL_CLIENT_ID` and a cached token.
 It is read-only and exits non-zero on any failure. Cases that need data the mailbox
 doesn't have report `SKIP` rather than passing silently.
 

@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "outlook-query": {
+    "outlook-mail": {
       "command": "node",
-      "args": ["/REPLACE/WITH/ABSOLUTE/PATH/outlook-query/dist/mcp.js"],
+      "args": ["/REPLACE/WITH/ABSOLUTE/PATH/outlook-mail-mcp/dist/mcp.js"],
       "env": {
-        "OUTLOOK_QUERY_CLIENT_ID": "REPLACE_WITH_AZURE_APP_CLIENT_ID"
+        "OUTLOOK_MAIL_CLIENT_ID": "REPLACE_WITH_AZURE_APP_CLIENT_ID"
       }
     }
   }
