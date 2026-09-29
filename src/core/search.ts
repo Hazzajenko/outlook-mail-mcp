@@ -4,6 +4,7 @@ import { buildBriefQuery, buildCountQuery, buildGraphQuery, FULL_SELECT } from "
 import { mapFolder, mapFullMessage, mapLeanWithFolderId } from "./result-mapper.ts";
 import type {
   BriefListResult,
+  ConversationResult,
   CountParams,
   CountResult,
   FilterParams,
@@ -220,7 +221,7 @@ export async function getConversation(
   client: GraphClient,
   conversationId: string,
   opts: GetConversationOptions = {},
-): Promise<FullMessage[]> {
+): Promise<ConversationResult> {
   const top = opts.top ?? 200;
   const format = opts.body_format ?? "text";
   const escaped = conversationId.replace(/'/g, "''");
@@ -236,20 +237,25 @@ export async function getConversation(
   let pagePath: string = "/me/messages";
   let pageQuery: URLSearchParams | undefined = query;
 
-  while (out.length < top) {
+  let hasMore = false;
+
+  while (true) {
     const raw = await client.get(pagePath, pageQuery, headers);
     const { value, "@odata.nextLink": nextLink } = PageSchema.parse(raw);
     const remaining = top - out.length;
     const take = Math.min(value.length, remaining);
     for (let i = 0; i < take; i++) out.push(keepNotableHeaders(mapFullMessage(value[i])));
-    if (out.length >= top) break;
+    if (out.length >= top) {
+      hasMore = value.length > take || nextLink !== undefined;
+      break;
+    }
     if (nextLink === undefined) break;
     pagePath = nextLink;
     pageQuery = undefined;
   }
 
   out.sort((a, b) => a.received_at.localeCompare(b.received_at));
-  return out;
+  return { messages: out, total_returned: out.length, has_more: hasMore };
 }
 
 const CountResponseSchema = z.object({

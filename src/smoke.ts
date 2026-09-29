@@ -28,6 +28,7 @@ import type { GraphClient } from "./core/graph-client.ts";
 import { HttpGraphClient } from "./core/http-graph-client.ts";
 import {
   BriefListResultSchema,
+  ConversationResultSchema,
   CountParamsSchema,
   CountResultSchema,
   FolderSchema,
@@ -204,11 +205,11 @@ async function main(): Promise<void> {
 
   await check("get_conversation", async () => {
     if (sampleConversationId === undefined) throw new Skip("no conversation id from search");
-    const thread = z
-      .array(FullMessageSchema)
-      .parse(await getConversation(client, sampleConversationId, { top: 10 }));
-    if (thread.length === 0) throw new Error("conversation returned no messages");
-    return `${thread.length} messages`;
+    const thread = ConversationResultSchema.parse(
+      await getConversation(client, sampleConversationId, { top: 10 }),
+    );
+    if (thread.messages.length === 0) throw new Error("conversation returned no messages");
+    return `${thread.total_returned} messages, has_more=${thread.has_more}`;
   });
 
   report();

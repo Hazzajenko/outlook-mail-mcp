@@ -1,4 +1,5 @@
 import type {
+  ConversationResult,
   EmailAddress,
   Folder,
   FullMessage,
@@ -48,6 +49,15 @@ export function renderFullMessage(m: FullMessage): string {
   lines.push(DIVIDER);
   lines.push(m.body);
   return `${lines.join("\n")}\n`;
+}
+
+export function renderConversation(result: ConversationResult): string {
+  const parts = result.messages.map(renderFullMessage);
+  const footer = result.has_more
+    ? `${result.total_returned} messages · more available, raise --top`
+    : `${result.total_returned} messages`;
+  parts.push(`${footer}\n`);
+  return parts.join("\n");
 }
 
 export function renderFolders(folders: Folder[]): string {

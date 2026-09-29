@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { renderFolders, renderFullMessage, renderSearchResults } from "../../src/cli-render.ts";
+import {
+  renderConversation,
+  renderFolders,
+  renderFullMessage,
+  renderSearchResults,
+} from "../../src/cli-render.ts";
 import type { Folder, FullMessage, LeanMessage, SearchResult } from "../../src/core/schemas.ts";
 
 const lean = (over: Partial<LeanMessage> = {}): LeanMessage => ({
@@ -157,6 +162,30 @@ describe("renderFullMessage", () => {
   it("does not flag inference_classification when absent", () => {
     const out = renderFullMessage(full);
     expect(out).not.toMatch(/^Classification:/m);
+  });
+});
+
+describe("renderConversation", () => {
+  const full: FullMessage = {
+    ...lean(),
+    to: [],
+    cc: [],
+    body: "Thread body.",
+    body_content_type: "text",
+    importance: "normal",
+    internet_message_headers: [],
+    web_link: "https://outlook.office.com/x",
+  };
+
+  it("renders each message and a count footer", () => {
+    const out = renderConversation({ messages: [full, full], total_returned: 2, has_more: false });
+    expect(out.match(/Thread body\./g)).toHaveLength(2);
+    expect(out).toMatch(/2 messages\n$/);
+  });
+
+  it("shows more-available footer when has_more is true", () => {
+    const out = renderConversation({ messages: [full], total_returned: 1, has_more: true });
+    expect(out).toMatch(/1 messages · more available/);
   });
 });
 
