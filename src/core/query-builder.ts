@@ -23,15 +23,6 @@ export const FULL_SELECT = [
   "webLink",
 ].join(",");
 
-export const CONVERSATION_SELECT = [
-  ...LEAN_SELECT.split(","),
-  "toRecipients",
-  "ccRecipients",
-  "body",
-  "importance",
-  "webLink",
-].join(",");
-
 export const BRIEF_SELECT = ["from", "subject", "receivedDateTime"].join(",");
 
 export interface GraphQuery {

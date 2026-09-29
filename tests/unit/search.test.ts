@@ -417,6 +417,35 @@ describe("getConversation", () => {
     expect(fake.calls).toHaveLength(1);
     expect(result).toHaveLength(2);
   });
+
+  it("requests internetMessageHeaders in $select", async () => {
+    const fake = new FakeGraphClient().enqueue({ value: [] });
+    await getConversation(fake, "conv-x");
+
+    expect(fake.calls[0]?.query?.get("$select")).toContain("internetMessageHeaders");
+  });
+
+  it("keeps only the notable headers on each message", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [
+        {
+          ...convoMsg("a", "2026-05-08T10:00:00Z"),
+          internetMessageHeaders: [
+            { name: "Authentication-Results", value: "spf=pass" },
+            { name: "return-path", value: "<bounces@example.com>" },
+            { name: "DKIM-Signature", value: "v=1; a=rsa-sha256; ..." },
+            { name: "X-MS-Exchange-Organization-SCL", value: "1" },
+          ],
+        },
+      ],
+    });
+    const result = await getConversation(fake, "conv-x");
+
+    expect(result[0]?.internet_message_headers.map((h) => h.name)).toEqual([
+      "Authentication-Results",
+      "return-path",
+    ]);
+  });
 });
 
 describe("countEmails", () => {

@@ -1,12 +1,6 @@
 import { z } from "zod";
 import { type GraphClient, GraphHttpError } from "./graph-client.ts";
-import {
-  buildBriefQuery,
-  buildCountQuery,
-  buildGraphQuery,
-  CONVERSATION_SELECT,
-  FULL_SELECT,
-} from "./query-builder.ts";
+import { buildBriefQuery, buildCountQuery, buildGraphQuery, FULL_SELECT } from "./query-builder.ts";
 import { mapFolder, mapFullMessage, mapLeanWithFolderId } from "./result-mapper.ts";
 import type {
   BriefListResult,
@@ -206,6 +200,10 @@ export async function getEmail(
   const raw = await client.get(`/me/messages/${id}`, query, headers);
   const message = mapFullMessage(raw);
   if (opts.include_all_headers) return message;
+  return keepNotableHeaders(message);
+}
+
+function keepNotableHeaders(message: FullMessage): FullMessage {
   // Senders capitalise header names inconsistently; match on the wire name.
   message.internet_message_headers = message.internet_message_headers.filter((h) =>
     NOTABLE_HEADERS.has(h.name.toLowerCase()),
@@ -229,7 +227,7 @@ export async function getConversation(
 
   const query = new URLSearchParams();
   query.set("$top", String(top));
-  query.set("$select", CONVERSATION_SELECT);
+  query.set("$select", FULL_SELECT);
   query.set("$filter", `conversationId eq '${escaped}'`);
 
   const headers = { Prefer: `outlook.body-content-type="${format}"` };
@@ -243,7 +241,7 @@ export async function getConversation(
     const { value, "@odata.nextLink": nextLink } = PageSchema.parse(raw);
     const remaining = top - out.length;
     const take = Math.min(value.length, remaining);
-    for (let i = 0; i < take; i++) out.push(mapFullMessage(value[i]));
+    for (let i = 0; i < take; i++) out.push(keepNotableHeaders(mapFullMessage(value[i])));
     if (out.length >= top) break;
     if (nextLink === undefined) break;
     pagePath = nextLink;
