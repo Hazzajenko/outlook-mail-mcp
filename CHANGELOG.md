@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/Hazzajenko/outlook-mail-mcp/compare/v0.1.1...v0.2.0) (2026-09-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* get_conversation and `outlook-mail conversation --json` return an object with a messages array instead of a bare array.
+
+### Bug Fixes
+
+* accept sent, deleted and junk as folder names ([#17](https://github.com/Hazzajenko/outlook-mail-mcp/issues/17)) ([00cf355](https://github.com/Hazzajenko/outlook-mail-mcp/commit/00cf355065a578d917bc5df71e50d4ea506e8506))
+* report has_more from get_conversation ([#16](https://github.com/Hazzajenko/outlook-mail-mcp/issues/16)) ([52a1295](https://github.com/Hazzajenko/outlook-mail-mcp/commit/52a129540373dc443333fa45a8f736ee15cea3bc))
+* return notable headers from get_conversation ([#15](https://github.com/Hazzajenko/outlook-mail-mcp/issues/15)) ([f7ee4a7](https://github.com/Hazzajenko/outlook-mail-mcp/commit/f7ee4a791dbe3ff739613b72fe9db879da4d5014))
+
 ## [0.1.1](https://github.com/Hazzajenko/outlook-mail-mcp/compare/v0.1.0...v0.1.1) (2026-09-29)
 
 
