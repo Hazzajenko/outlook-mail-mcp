@@ -100,6 +100,18 @@ describe("search", () => {
     expect(fake.calls).toHaveLength(1);
   });
 
+  it.each([
+    ["sent", "sentitems"],
+    ["Deleted", "deleteditems"],
+    ["junk", "junkemail"],
+  ])("maps the alias %s to the well-known folder %s", async (alias, wellKnown) => {
+    const fake = new FakeGraphClient().enqueue({ value: [] });
+    await search(fake, params({ folder: alias }));
+
+    expect(fake.calls[0]?.pathOrUrl).toBe(`/me/mailFolders/${wellKnown}/messages`);
+    expect(fake.calls).toHaveLength(1);
+  });
+
   it("resolves custom folder name via listFolders", async () => {
     const fake = new FakeGraphClient()
       .enqueue({ value: [{ ...folderFixture, id: "fold-jobs", displayName: "Jobs" }] })
