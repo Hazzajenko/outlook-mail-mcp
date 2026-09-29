@@ -63,6 +63,13 @@ async function getSorted(
   }
 }
 
+// Short names people type for folders whose Graph name is one word.
+const FOLDER_ALIASES: Record<string, string> = {
+  sent: "sentitems",
+  deleted: "deleteditems",
+  junk: "junkemail",
+};
+
 const WELL_KNOWN_FOLDERS = new Set([
   "archive",
   "clutter",
@@ -349,6 +356,8 @@ export async function listFolders(client: GraphClient): Promise<Folder[]> {
 
 async function resolveFolderId(client: GraphClient, name: string): Promise<string> {
   const lc = name.toLowerCase();
+  const alias = FOLDER_ALIASES[lc];
+  if (alias !== undefined) return alias;
   if (WELL_KNOWN_FOLDERS.has(lc)) return lc;
   const folders = await listFolders(client);
   const found = folders.find((f) => f.display_name.toLowerCase() === lc);

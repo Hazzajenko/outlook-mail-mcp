@@ -37,7 +37,7 @@ const filterShape = {
     .string()
     .optional()
     .describe(
-      "well-known (inbox/sentitems/junkemail/deleteditems/drafts/archive) or custom display name. When omitted, Graph $search excludes Junk/Deleted/Drafts — pass folder explicitly to search them.",
+      "well-known (inbox/sent/drafts/archive/junk/deleted) or custom display name. When omitted, Graph $search excludes Junk/Deleted/Drafts — pass folder explicitly to search them.",
     ),
   is_unread: z.boolean().optional(),
   importance: ImportanceSchema.optional(),

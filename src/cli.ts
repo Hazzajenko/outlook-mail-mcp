@@ -98,7 +98,10 @@ program
   .option("--has-attachment", "only with attachments")
   .option("--unread", "only unread")
   .option("--read", "only read (already-opened)")
-  .option("--folder <name>", "folder (well-known: inbox/sent/archive/... or custom name)")
+  .option(
+    "--folder <name>",
+    "folder (well-known: inbox/sent/drafts/archive/junk/deleted, or custom name)",
+  )
   .option("--importance <level>", "low | normal | high")
   .option(
     "--inference-classification <value>",
