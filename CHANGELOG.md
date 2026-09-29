@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/Hazzajenko/outlook-mail-mcp/compare/v0.1.0...v0.1.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* read the CLI and MCP version from package.json ([#18](https://github.com/Hazzajenko/outlook-mail-mcp/issues/18)) ([ba88046](https://github.com/Hazzajenko/outlook-mail-mcp/commit/ba880461fa4f6e8e211c519e530847fc0904d902))
+
 ## 0.1.0 (2026-09-28)
 
 
