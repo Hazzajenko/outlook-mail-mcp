@@ -319,7 +319,7 @@ describe("getConversation", () => {
     conversationId: "conv-x",
   });
 
-  it("filters by conversationId and returns FullMessage array", async () => {
+  it("filters by conversationId and returns the messages", async () => {
     const fake = new FakeGraphClient().enqueue({
       value: [convoMsg("a", "2026-05-08T10:00:00Z"), convoMsg("b", "2026-05-08T11:00:00Z")],
     });
@@ -327,8 +327,8 @@ describe("getConversation", () => {
 
     expect(fake.calls[0]?.pathOrUrl).toBe("/me/messages");
     expect(fake.calls[0]?.query?.get("$filter")).toBe("conversationId eq 'conv-x'");
-    expect(result.map((m) => m.id)).toEqual(["a", "b"]);
-    expect(result[0]?.body).toBeDefined();
+    expect(result.messages.map((m) => m.id)).toEqual(["a", "b"]);
+    expect(result.messages[0]?.body).toBeDefined();
   });
 
   it("sorts results ascending by received_at (chronological)", async () => {
@@ -341,7 +341,7 @@ describe("getConversation", () => {
     });
     const result = await getConversation(fake, "conv-x");
 
-    expect(result.map((m) => m.id)).toEqual(["a", "b", "c"]);
+    expect(result.messages.map((m) => m.id)).toEqual(["a", "b", "c"]);
   });
 
   it("does not send $orderby (would trigger InefficientFilter on Graph)", async () => {
@@ -386,7 +386,7 @@ describe("getConversation", () => {
     const result = await getConversation(fake, "conv-x");
 
     expect(fake.calls).toHaveLength(2);
-    expect(result.map((m) => m.id)).toEqual(["a", "b"]);
+    expect(result.messages.map((m) => m.id)).toEqual(["a", "b"]);
   });
 
   it("re-sends Prefer header on paginated nextLink calls", async () => {
@@ -415,7 +415,42 @@ describe("getConversation", () => {
     const result = await getConversation(fake, "conv-x", { top: 2 });
 
     expect(fake.calls).toHaveLength(1);
-    expect(result).toHaveLength(2);
+    expect(result.messages).toHaveLength(2);
+  });
+
+  it("sets has_more when the thread has more messages than top", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [
+        convoMsg("a", "2026-05-08T10:00:00Z"),
+        convoMsg("b", "2026-05-08T11:00:00Z"),
+        convoMsg("c", "2026-05-08T12:00:00Z"),
+      ],
+    });
+    const result = await getConversation(fake, "conv-x", { top: 2 });
+
+    expect(result.has_more).toBe(true);
+    expect(result.total_returned).toBe(2);
+  });
+
+  it("sets has_more when top is reached and Graph has another page", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [convoMsg("a", "2026-05-08T10:00:00Z"), convoMsg("b", "2026-05-08T11:00:00Z")],
+      "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skip=2",
+    });
+    const result = await getConversation(fake, "conv-x", { top: 2 });
+
+    expect(fake.calls).toHaveLength(1);
+    expect(result.has_more).toBe(true);
+  });
+
+  it("clears has_more when the thread has fewer messages than top", async () => {
+    const fake = new FakeGraphClient().enqueue({
+      value: [convoMsg("a", "2026-05-08T10:00:00Z"), convoMsg("b", "2026-05-08T11:00:00Z")],
+    });
+    const result = await getConversation(fake, "conv-x", { top: 5 });
+
+    expect(result.has_more).toBe(false);
+    expect(result.total_returned).toBe(2);
   });
 
   it("requests internetMessageHeaders in $select", async () => {
@@ -441,7 +476,7 @@ describe("getConversation", () => {
     });
     const result = await getConversation(fake, "conv-x");
 
-    expect(result[0]?.internet_message_headers.map((h) => h.name)).toEqual([
+    expect(result.messages[0]?.internet_message_headers.map((h) => h.name)).toEqual([
       "Authentication-Results",
       "return-path",
     ]);

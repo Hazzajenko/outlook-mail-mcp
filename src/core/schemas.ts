@@ -128,6 +128,13 @@ export const FullMessageSchema = LeanMessageSchema.extend({
 });
 export type FullMessage = z.infer<typeof FullMessageSchema>;
 
+export const ConversationResultSchema = z.object({
+  messages: z.array(FullMessageSchema),
+  total_returned: z.number().int(),
+  has_more: z.boolean(),
+});
+export type ConversationResult = z.infer<typeof ConversationResultSchema>;
+
 export const FolderSchema = z.object({
   id: z.string(),
   display_name: z.string(),

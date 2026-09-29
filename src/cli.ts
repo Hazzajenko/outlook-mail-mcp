@@ -10,7 +10,12 @@ import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { z } from "zod";
-import { renderFolders, renderFullMessage, renderSearchResults } from "./cli-render.ts";
+import {
+  renderConversation,
+  renderFolders,
+  renderFullMessage,
+  renderSearchResults,
+} from "./cli-render.ts";
 import { createTokenProvider, type TokenProvider } from "./core/auth.ts";
 import { resolveAuthConfig } from "./core/config.ts";
 import { mergeEnvContent } from "./core/env-file.ts";
@@ -165,11 +170,11 @@ program
     const convoOpts: { body_format?: "text" | "html"; top?: number } = {};
     if (opts.bodyFormat) convoOpts.body_format = opts.bodyFormat;
     if (opts.top !== undefined) convoOpts.top = opts.top;
-    const messages = await getConversation(client, id, convoOpts);
+    const result = await getConversation(client, id, convoOpts);
     if (opts.json) {
-      process.stdout.write(`${JSON.stringify(messages, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     } else {
-      for (const m of messages) process.stdout.write(renderFullMessage(m));
+      process.stdout.write(renderConversation(result));
     }
   });
 

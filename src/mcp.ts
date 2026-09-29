@@ -101,7 +101,7 @@ server.registerTool(
   {
     title: "Get full email thread by conversation_id",
     description:
-      "Fetch all messages in a conversation/thread, sorted oldest-first, with bodies. Use the conversation_id from search_emails results. Body returned as plain text by default; pass body_format='html' for raw HTML. Capped at 200 messages by default.",
+      "Fetch all messages in a conversation/thread, sorted oldest-first, with bodies. Use the conversation_id from search_emails results. Body returned as plain text by default; pass body_format='html' for raw HTML. Capped at 200 messages by default. Returns { messages, total_returned, has_more }. If has_more is true, the thread has more messages; call again with a higher top.",
     inputSchema: {
       conversation_id: z.string().describe("Graph conversationId from a search_emails result"),
       body_format: z.enum(["text", "html"]).optional().describe("Body format; defaults to 'text'"),
